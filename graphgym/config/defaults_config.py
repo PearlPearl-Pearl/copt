@@ -49,6 +49,10 @@ def extended_cfg(cfg):
     cfg.train.test_dump_period = 10  # dump every x number of epochs
     cfg.train.val_period = 1  # run validation every x epochs
 
+    # When True, log mean/std of GNN output probabilities (batch.x) each step,
+    # plus a wandb histogram if wandb is enabled.
+    cfg.train.log_probs = False
+
     # Record individual task scores in addition to the averaged scores if set
     # to True. Currently only support for regression tasks.
     cfg.train.record_individual_scores = False

@@ -350,6 +350,47 @@ def mis_decoder_pyg(batch, dec_length=300, num_seeds=1):
     return Batch.from_data_list(data_list)
 
 
+### GRAPH PARTITIONING ###
+
+def gp_decoder(data):
+    # Threshold at 0.5: nodes with x >= 0.5 go to S1, rest to S2
+    x = data.x.squeeze()
+    partition = (x >= 0.5).long()  # 0 or 1 per node
+    return partition
+
+
+def _edge_index_to_adj(data):
+    n = data.num_nodes
+    A = np.zeros((n, n), dtype=np.float32)
+    ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
+    A[ei[0], ei[1]] = 1.0
+    return A
+
+
+def gp_gnn_ncut_pyg(batch, k=2):
+    """Normalised cut of the GNN's partition (threshold data.x at 0.5)."""
+    from utils.spectral import normalised_cut
+    data_list = batch.to_data_list()
+    ncut_list = []
+    for data in data_list:
+        labels = gp_decoder(data).cpu().numpy()
+        A = _edge_index_to_adj(data)
+        ncut_list.append(normalised_cut(A, labels, k))
+    return torch.tensor(ncut_list, dtype=torch.float).mean()
+
+
+def gp_spectral_ncut_pyg(batch, k=2):
+    """Normalised cut of the spectral partitioning heuristic (no GNN)."""
+    from utils.spectral import spectral_partition, normalised_cut
+    data_list = batch.to_data_list()
+    ncut_list = []
+    for data in data_list:
+        A = _edge_index_to_adj(data)
+        labels = spectral_partition(A, k)
+        ncut_list.append(normalised_cut(A, labels, k))
+    return torch.tensor(ncut_list, dtype=torch.float).mean()
+
+
 ### MAXBIPARTITE ###
 
 def maxbipartite_decoder(output, adj, dec_length):

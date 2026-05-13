@@ -179,3 +179,24 @@ def mis_loss_pyg(batch, beta=0.1):
 
 def maxbipartite_loss(output, adj, beta):
     return maxclique_loss(output, torch.matrix_power(adj, 2), beta)
+
+
+@register_loss("gp_loss")
+def gp_loss_pyg(data, beta=1.0, gamma=1.0):
+    batch_size = data.batch.unique().size(0)
+    x = data.x.squeeze()  # probabilities in [0,1]
+    src, dst = data.edge_index[0], data.edge_index[1]
+
+    # Term 1: minimize edges crossing the cut
+    loss1 = torch.sum((x[src] - x[dst]) ** 2)
+
+    # Term 2 & 3: soft balance constraint — keep partition sizes reasonable
+    n = x.size(0)
+    partition_sum = x.sum()
+    loss2 = torch.log(1 + torch.exp(1 - partition_sum))
+    loss3 = torch.log(1 + torch.exp(partition_sum - (n - 1)))
+
+    # Term 4: discreteness penalty — push x_i toward {0, 1}
+    loss4 = torch.sum(x * (1 - x))
+
+    return (loss1 + beta * (loss2 + loss3) + gamma * loss4) / batch_size

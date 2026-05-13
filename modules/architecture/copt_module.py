@@ -40,6 +40,8 @@ class COPTModule(GraphGymModule):
                 eval_func = partial(eval_func, **cfg.metrics[cfg.train.task])
             self.eval_func_dict[key] = eval_func
 
+        self._test_probs = []   # accumulates batch.x across test batches
+
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)
 
@@ -48,11 +50,21 @@ class COPTModule(GraphGymModule):
         scheduler = create_scheduler(optimizer, self.cfg.optim)
         return [optimizer], [scheduler]
 
+    def _log_probs(self, batch, split):
+        probs = batch.x.detach().squeeze()
+        self.log(f"probs/mean_{split}", probs.mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log(f"probs/std_{split}", probs.std(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        if cfg.wandb.use:
+            import wandb
+            wandb.log({f"probs/hist_{split}": wandb.Histogram(probs.cpu().numpy())}, commit=False)
+
     def training_step(self, batch, *args, **kwargs):
         batch.split = "train"
         out = self.forward(batch)
         loss = self.loss_func(batch)
         self.log("loss/train", loss, batch_size=batch.batch_size, on_step=True, prog_bar=True, logger=True)
+        if cfg.train.log_probs:
+            self._log_probs(batch, "train")
 
         if cfg.optim.entropy.enable:
             if cfg.optim.entropy.scheduler == "linear-energy":
@@ -76,6 +88,8 @@ class COPTModule(GraphGymModule):
         step_end_time = time.time()
         eval_dict = dict(loss=loss, step_end_time=step_end_time)
         self.log("loss/valid", loss, batch_size=batch.batch_size, on_epoch=True, prog_bar=True, logger=True)
+        if cfg.train.log_probs:
+            self._log_probs(batch, "val")
         for eval_type, eval_func in self.eval_func_dict.items():
             eval = eval_func(batch)
             eval_dict.update({eval_type: eval})
@@ -93,7 +107,31 @@ class COPTModule(GraphGymModule):
             eval = eval_func(batch)
             eval_dict.update({eval_type: eval})
             self.log("".join([eval_type, "/test"]), eval, batch_size=batch.batch_size, on_epoch=True, prog_bar=True, logger=True)
+        if cfg.train.log_probs:
+            self._test_probs.append(batch.x.detach().cpu().squeeze())
         return eval_dict
+
+    def on_test_epoch_end(self):
+        if not cfg.train.log_probs or not self._test_probs:
+            return
+        import os
+        probs = torch.cat(self._test_probs)           # (total_nodes,)
+        out_path = os.path.join(cfg.run_dir, "probs_test.pt")
+        torch.save(probs, out_path)
+        print(f"\n--- GNN output probabilities (test set) ---")
+        print(f"  shape : {tuple(probs.shape)}")
+        print(f"  min   : {probs.min():.4f}")
+        print(f"  max   : {probs.max():.4f}")
+        print(f"  mean  : {probs.mean():.4f}")
+        print(f"  std   : {probs.std():.4f}")
+        # Text histogram: 10 buckets across [0, 1]
+        counts = torch.histc(probs, bins=10, min=0.0, max=1.0)
+        print(f"  histogram (0→1):")
+        for i, c in enumerate(counts):
+            lo, hi = i * 0.1, (i + 1) * 0.1
+            bar = "█" * int(c.item() * 40 / counts.max().item())
+            print(f"    [{lo:.1f}-{hi:.1f}]  {bar} {int(c.item())}")
+        print(f"  saved to: {out_path}")
 
     @property
     def encoder(self) -> torch.nn.Module:

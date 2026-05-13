@@ -222,3 +222,36 @@ def ba_large_cfg(cfg):
     cfg.ba.large = CN()
     cfg.ba.large.n_min = 800
     cfg.ba.large.n_max = 1200
+
+
+@register_config('sbm_cfg')
+def sbm_cfg(cfg):
+    """Configuration options for Stochastic Block Model datasets."""
+    cfg.sbm = CN()
+    cfg.sbm.num_samples = 5000
+    cfg.sbm.n_min = 50
+    cfg.sbm.n_max = 100
+    cfg.sbm.k = 2
+    cfg.sbm.p_in = 0.7
+    cfg.sbm.p_out = 0.1
+    cfg.sbm.supp_mtx = ["edge_index"]
+
+
+@register_config('sbm_small_cfg')
+def sbm_small_cfg(cfg):
+    cfg.sbm.small = CN()
+    cfg.sbm.small.n_min = 50
+    cfg.sbm.small.n_max = 100
+    cfg.sbm.small.k = 2
+    cfg.sbm.small.p_in = 0.7
+    cfg.sbm.small.p_out = 0.1
+
+
+@register_config('sbm_large_cfg')
+def sbm_large_cfg(cfg):
+    cfg.sbm.large = CN()
+    cfg.sbm.large.n_min = 200
+    cfg.sbm.large.n_max = 400
+    cfg.sbm.large.k = 3
+    cfg.sbm.large.p_in = 0.6
+    cfg.sbm.large.p_out = 0.05

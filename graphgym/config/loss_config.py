@@ -31,3 +31,10 @@ def loss_param_cfg(cfg):
     cfg.metrics.mis = CN()
     cfg.metrics.mis.dec_length = 100
     cfg.metrics.maxclique.num_seeds = 1
+
+    cfg.gp_loss = CN()
+    cfg.gp_loss.beta = 1.0
+    cfg.gp_loss.gamma = 1.0
+
+    cfg.metrics.gp = CN()
+    cfg.metrics.gp.k = 2
