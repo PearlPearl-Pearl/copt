@@ -199,7 +199,7 @@ def maxbipartite_loss(output, adj, beta):
 
 ### GRAPH PARTITIONING ###
 @register_loss("gp_loss")
-def gp_loss_pyg(data, beta=1.0, gamma=1.0):
+def gp_loss_pyg(data, beta=100, gamma=100):
     batch_size = data.batch.unique().size(0)
     x = data.x.squeeze()  # probabilities in [0,1]
     src, dst = data.edge_index[0], data.edge_index[1]
