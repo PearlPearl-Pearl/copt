@@ -430,37 +430,30 @@ def _edge_index_to_adj(data):
 #         ncut_list.append(normalised_cut(A, labels, k))
 #     return torch.tensor(ncut_list, dtype=torch.float).mean()
 
-def gp_gnn_ncut_pyg(batch, k=2):
-    """Normalised cut of the GNN's partition (threshold data.x at 0.5).
-    
-    Degenerate partitions (where fewer than k clusters are populated) are
-    assigned a sentinel value of k (the worst-case for normalised cut) so
-    they don't get silently rewarded as ncut=0.
-    """
-    from utils.spectral import normalised_cut
+def gp_gnn_cut_pyg(batch, k=2):
+    """Mean number of edges crossing the GNN's partition boundary (lower = better)."""
     data_list = batch.to_data_list()
-    ncut_list = []
+    cut_list = []
     for data in data_list:
         labels = gp_decoder(data).cpu().numpy()
-        if len(np.unique(labels)) < k:
-            # Degenerate: fewer than k clusters populated
-            ncut_list.append(float(k))
-            continue
-        A = _edge_index_to_adj(data)
-        ncut_list.append(normalised_cut(A, labels, k))
-    return torch.tensor(ncut_list, dtype=torch.float).mean()
+        ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
+        cut = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2  # //2: undirected
+        cut_list.append(cut)
+    return torch.tensor(cut_list, dtype=torch.float).mean()
 
 
-def gp_spectral_ncut_pyg(batch, k=2):
-    """Normalised cut of the spectral partitioning heuristic (no GNN)."""
-    from utils.spectral import spectral_partition, normalised_cut
+def gp_spectral_cut_pyg(batch, k=2):
+    """Mean number of edges crossing the spectral partition boundary (lower = better)."""
+    from utils.spectral import spectral_partition
     data_list = batch.to_data_list()
-    ncut_list = []
+    cut_list = []
     for data in data_list:
         A = _edge_index_to_adj(data)
         labels = spectral_partition(A, k)
-        ncut_list.append(normalised_cut(A, labels, k))
-    return torch.tensor(ncut_list, dtype=torch.float).mean()
+        ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
+        cut = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2
+        cut_list.append(cut)
+    return torch.tensor(cut_list, dtype=torch.float).mean()
 
 
 ### MAXBIPARTITE ###

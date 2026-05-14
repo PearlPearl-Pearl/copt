@@ -1,7 +1,7 @@
 ---
 out_dir: results
-metric_best: gnn_ncut
-metric_agg: argmin        # NCut is lower-is-better
+metric_best: gnn_cut
+metric_agg: argmin        # cut size is lower-is-better
 num_workers: 4
 dim_out: 1
 wandb:
@@ -85,7 +85,7 @@ gnn:
 
 optim:
   base_lr: 0.003
-  max_epoch: 10
+  max_epoch: 5
   optimizer: adam
   weight_decay: 1e-5
   scheduler: cosine_with_warmup
