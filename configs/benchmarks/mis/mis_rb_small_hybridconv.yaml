@@ -57,7 +57,7 @@ train:
   mode: copt
   task: mis
   batch_size: 256
-  val_period: 5
+  val_period: 1
   ckpt_period: 100
   ckpt_best: true
   log_probs: false

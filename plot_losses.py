@@ -1,5 +1,6 @@
 """
-Plot train and validation loss curves from two Lightning metrics.csv files.
+Plot train and validation loss curves from two Lightning metrics.csv files
+on a single axes so architectures can be directly compared.
 
 Usage:
     python plot_losses.py \
@@ -20,7 +21,6 @@ import pandas as pd
 def load_curves(csv_path):
     df = pd.read_csv(csv_path)
 
-    # --- train loss: logged per step; average over all steps in each epoch ---
     train = (
         df[["epoch", "loss/train"]]
         .dropna(subset=["loss/train"])
@@ -29,8 +29,6 @@ def load_curves(csv_path):
         .reset_index()
         .rename(columns={"loss/train": "train_loss"})
     )
-
-    # --- val loss: logged once per epoch ---
     val = (
         df[["epoch", "loss/valid"]]
         .dropna(subset=["loss/valid"])
@@ -39,44 +37,45 @@ def load_curves(csv_path):
         .reset_index()
         .rename(columns={"loss/valid": "val_loss"})
     )
-
     return train, val
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--csv1", required=True, help="metrics.csv for run 1")
-    parser.add_argument("--csv2", required=True, help="metrics.csv for run 2")
-    parser.add_argument("--label1", default="run1", help="Legend label for run 1")
-    parser.add_argument("--label2", default="run2", help="Legend label for run 2")
-    parser.add_argument("--out", default="loss_curves.png", help="Output file path")
+    parser.add_argument("--csv1",   required=True)
+    parser.add_argument("--csv2",   required=True)
+    parser.add_argument("--label1", default="run1")
+    parser.add_argument("--label2", default="run2")
+    parser.add_argument("--out",    default="loss_curves.png")
     args = parser.parse_args()
 
     train1, val1 = load_curves(args.csv1)
     train2, val2 = load_curves(args.csv2)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=False)
+    colors = {args.label1: "#1f77b4", args.label2: "#d62728"}
 
-    colors = {"1": "#1f77b4", "2": "#d62728"}
+    fig, ax = plt.subplots(figsize=(9, 5))
 
-    for ax, (train, val, label, color) in zip(
-        axes,
-        [
-            (train1, val1, args.label1, colors["1"]),
-            (train2, val2, args.label2, colors["2"]),
-        ],
-    ):
+    for train, val, label in [
+        (train1, val1, args.label1),
+        (train2, val2, args.label2),
+    ]:
+        c = colors[label]
         ax.plot(train["epoch"], train["train_loss"],
-                color=color, linestyle="--", linewidth=1.5, label="train loss")
+                color=c, linestyle="--", linewidth=1.5,
+                label=f"{label} — train")
         ax.plot(val["epoch"], val["val_loss"],
-                color=color, linestyle="-", linewidth=2.0, label="val loss")
-        ax.set_title(label, fontsize=13)
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Loss")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
+                color=c, linestyle="-",  linewidth=2.0,
+                marker="o", markersize=4,
+                label=f"{label} — val")
 
-    fig.suptitle(f"{args.label1}  vs  {args.label2} — training curves", fontsize=14)
+    ax.set_xlabel("Epoch", fontsize=12)
+    ax.set_ylabel("Loss",  fontsize=12)
+    ax.set_title(f"{args.label1}  vs  {args.label2} — training curves",
+                 fontsize=13)
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3)
+
     plt.tight_layout()
     plt.savefig(args.out, dpi=150)
     print(f"Saved to {args.out}")
