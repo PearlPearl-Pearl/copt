@@ -16,7 +16,7 @@ from utils.metrics import (
     maxclique_ratio, maxclique_size_pyg, maxclique_ratio_pyg,
     plantedclique_acc_pyg,
     mds_size_pyg, mds_acc_pyg,
-    mis_size_pyg,
+    mis_size_pyg, greedy_mis_size,
     gp_gnn_ncut_pyg, gp_spectral_ncut_pyg,
 )
 
@@ -60,7 +60,7 @@ EVAL_FUNCTION_DICT = {
     "maxcut": {"size": maxcut_size_pyg}, # "acc": maxcut_acc_pyg},
     "maxclique": {"size": maxclique_size_pyg, 'ratio': maxclique_ratio_pyg},
     "mds": {"size": mds_size_pyg},
-    "mis": {"size": mis_size_pyg},
+    "mis": {"size": mis_size_pyg, "greedy_size": greedy_mis_size},
     "plantedclique": {"acc": plantedclique_acc_pyg},
     "gp": {"gnn_ncut": gp_gnn_ncut_pyg, "spectral_ncut": gp_spectral_ncut_pyg},
 }
@@ -69,6 +69,6 @@ EVAL_FUNCTION_DICT_NOLABEL = {
     "maxcut": {"size": maxcut_size_pyg},
     "maxclique": {"size": maxclique_size_pyg},
     "mds": {"size": mds_size_pyg},
-    "mis": {"size": mis_size_pyg},
+    "mis": {"size": mis_size_pyg, "greedy_size": greedy_mis_size},
     "gp": {"gnn_ncut": gp_gnn_ncut_pyg, "spectral_ncut": gp_spectral_ncut_pyg},
 }

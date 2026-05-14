@@ -51,12 +51,22 @@ class COPTModule(GraphGymModule):
         return [optimizer], [scheduler]
 
     def _log_probs(self, batch, split):
-        probs = batch.x.detach().squeeze()
-        self.log(f"probs/mean_{split}", probs.mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log(f"probs/std_{split}", probs.std(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        if cfg.wandb.use:
-            import wandb
-            wandb.log({f"probs/hist_{split}": wandb.Histogram(probs.cpu().numpy())}, commit=False)
+        x = batch.x.detach()           # (N,) or (N, k)
+        if x.dim() == 1:
+            # scalar output: single probability per node
+            self.log(f"probs/mean_{split}", x.mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(f"probs/std_{split}", x.std(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            if cfg.wandb.use:
+                import wandb
+                wandb.log({f"probs/hist_{split}": wandb.Histogram(x.cpu().numpy())}, commit=False)
+        else:
+            # k-way output: log mean probability per partition
+            for i in range(x.shape[1]):
+                self.log(f"probs/mean_p{i}_{split}", x[:, i].mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            if cfg.wandb.use:
+                import wandb
+                for i in range(x.shape[1]):
+                    wandb.log({f"probs/hist_p{i}_{split}": wandb.Histogram(x[:, i].cpu().numpy())}, commit=False)
 
     def training_step(self, batch, *args, **kwargs):
         batch.split = "train"
@@ -115,7 +125,7 @@ class COPTModule(GraphGymModule):
         if not cfg.train.log_probs or not self._test_probs:
             return
         import os
-        probs = torch.cat(self._test_probs)           # (total_nodes,)
+        probs = torch.cat(self._test_probs)           # (total_nodes,) or (total_nodes, k)
         out_path = os.path.join(cfg.run_dir, "probs_test.pt")
         torch.save(probs, out_path)
         print(f"\n--- GNN output probabilities (test set) ---")
@@ -124,9 +134,37 @@ class COPTModule(GraphGymModule):
         print(f"  max   : {probs.max():.4f}")
         print(f"  mean  : {probs.mean():.4f}")
         print(f"  std   : {probs.std():.4f}")
+        # Partition assignment counts and node sets
+        total = probs.shape[0]
+        _MAX_SHOW = 30  # truncate long node lists
+        def _fmt_set(indices):
+            idx = indices.tolist()
+            if len(idx) <= _MAX_SHOW:
+                return "{" + ", ".join(map(str, idx)) + "}"
+            return "{" + ", ".join(map(str, idx[:_MAX_SHOW])) + f", ... +{len(idx)-_MAX_SHOW} more}}"
+
+        if probs.dim() == 1:
+            # scalar output: y = 2p - 1, threshold at 0 (equiv. p < 0.5)
+            idx0 = torch.where(probs < 0.5)[0]
+            idx1 = torch.where(probs >= 0.5)[0]
+            n0, n1 = len(idx0), len(idx1)
+            print(f"  partition 0 : {n0:6d} nodes  ({100*n0/total:.1f}%)")
+            print(f"  S1 = {_fmt_set(idx0)}")
+            print(f"  partition 1 : {n1:6d} nodes  ({100*n1/total:.1f}%)")
+            print(f"  S2 = {_fmt_set(idx1)}")
+        else:
+            # k-way output: argmax over columns
+            assignments = probs.argmax(dim=1)
+            for part in range(probs.shape[1]):
+                idx = torch.where(assignments == part)[0]
+                n = len(idx)
+                print(f"  partition {part} : {n:6d} nodes  ({100*n/total:.1f}%)")
+                print(f"  S{part+1} = {_fmt_set(idx)}")
         # Text histogram: 10 buckets across [0, 1]
-        counts = torch.histc(probs, bins=10, min=0.0, max=1.0)
-        print(f"  histogram (0→1):")
+        flat = probs.flatten() if probs.dim() > 1 else probs
+        counts = torch.histc(flat, bins=10, min=0.0, max=1.0)
+        label = "(all partitions flattened)" if probs.dim() > 1 else ""
+        print(f"  histogram (0→1) {label}:")
         for i, c in enumerate(counts):
             lo, hi = i * 0.1, (i + 1) * 0.1
             bar = "█" * int(c.item() * 40 / counts.max().item())

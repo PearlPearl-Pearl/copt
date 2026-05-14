@@ -1,17 +1,17 @@
 ---
 out_dir: results
-metric_best: gnn_ncut
-metric_agg: argmin        # NCut is lower-is-better
+metric_best: size
+metric_agg: argmax
 num_workers: 4
 dim_out: 1
 wandb:
   use: False
-  name: gp_sbm_small
-  project: copt-gp
+  name: mis_rb_small_hybridconv
+  project: copt-mis
 
 dataset:
-  format: sbm
-  name: small             # uses cfg.sbm.small (n_min=50, n_max=100, k=2, p_in=0.7, p_out=0.1)
+  format: rb
+  name: small
   task: graph
   split_mode: cv-kfold-5
   split_dir: splits
@@ -55,16 +55,16 @@ posenc_NormalRE:
 
 train:
   mode: copt
-  task: gp                # must match key in EVAL_FUNCTION_DICT
+  task: mis
   batch_size: 256
-  val_period: 1
+  val_period: 5
   ckpt_period: 100
   ckpt_best: true
-  log_probs: true         # log mean/std of GNN output probabilities each step
+  log_probs: false
 
 model:
   type: gnn
-  loss_fun: gp_loss       # must match @register_loss name
+  loss_fun: mis_loss
   edge_decoding: dot
   graph_pooling: mean
 
@@ -74,18 +74,18 @@ gnn:
   layers_mp: 16
   layers_post_mp: 1
   dim_inner: 256
-  layer_type: gcon
+  layer_type: hybridconv
   stage_type: skipsum
   batchnorm: true
-  act: elu
-  last_act: sigmoid       # p in [0,1]; loss uses y = 2p - 1
+  act: relu
+  last_act: sigmoid
   dropout: 0.3
   agg: mean
   normalize_adj: false
 
 optim:
   base_lr: 0.003
-  max_epoch: 10
+  max_epoch: 200
   optimizer: adam
   weight_decay: 1e-5
   scheduler: cosine_with_warmup
@@ -96,7 +96,9 @@ optim:
     base_temp: 1.0
     min_temp: 0.001
 
-# Evaluation hyperparameters
+mis_loss:
+  beta: 1.0
+
 metrics:
-  gp:
-    k: 2
+  mis:
+    dec_length: 100

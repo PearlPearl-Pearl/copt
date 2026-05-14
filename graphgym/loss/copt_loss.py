@@ -160,6 +160,21 @@ def mds_loss_pyg(data, beta=1.0):
 #     return loss #/ batch_size
 
 
+# @register_loss("mis_loss")
+# def mis_loss_pyg(batch, beta=0.1):
+#     data_list = batch.to_data_list()
+
+#     loss = 0.0
+#     for data in data_list:
+#         src, dst = data.edge_index[0], data.edge_index[1]
+
+#         loss1 = torch.sum(data.x[src] * data.x[dst])
+#         loss2 = data.x.sum() ** 2 - loss1 - torch.sum(data.x ** 2)
+#         loss += (- loss2 + beta * loss1) * data.num_nodes
+
+#     return loss / batch.size(0)
+
+
 @register_loss("mis_loss")
 def mis_loss_pyg(batch, beta=0.1):
     data_list = batch.to_data_list()
@@ -168,12 +183,12 @@ def mis_loss_pyg(batch, beta=0.1):
     for data in data_list:
         src, dst = data.edge_index[0], data.edge_index[1]
 
-        loss1 = torch.sum(data.x[src] * data.x[dst])
-        loss2 = data.x.sum() ** 2 - loss1 - torch.sum(data.x ** 2)
-        loss += (- loss2 + beta * loss1) * data.num_nodes
+        loss1 = torch.sum(data.x)
+        loss2 = torch.sum(data.x[src]*data.x[dst])
 
-    return loss / batch.size(0)
+        loss += (-loss1 + beta*loss2)*data.num_nodes
 
+        return loss/batch.size(0)
 
 ### MAXBIPARTITE ###
 
@@ -181,6 +196,8 @@ def maxbipartite_loss(output, adj, beta):
     return maxclique_loss(output, torch.matrix_power(adj, 2), beta)
 
 
+
+### GRAPH PARTITIONING ###
 @register_loss("gp_loss")
 def gp_loss_pyg(data, beta=1.0, gamma=1.0):
     batch_size = data.batch.unique().size(0)
@@ -200,3 +217,96 @@ def gp_loss_pyg(data, beta=1.0, gamma=1.0):
     loss4 = torch.sum(x * (1 - x))
 
     return (loss1 + beta * (loss2 + loss3) + gamma * loss4) / batch_size
+
+
+# @register_loss("gp_loss")
+# def gp_loss_pyg(data, beta=1.0, gamma=1.0):
+#     batch_size = data.batch.unique().size(0)
+#     x = data.x  # (total_nodes, k) — softmax output, rows sum to 1
+#     src, dst = data.edge_index[0], data.edge_index[1]
+#     k = cfg.metrics.gp.k
+#     diff = x[src] - x[dst]
+#     loss1 = (diff ** 2).sum()
+#     partition_sums = x.sum(dim=0)
+#     loss2 = torch.log(1 + torch.exp(1 - partition_sums)).sum()
+#     loss3 = (x * (1 - x)).sum()
+#     return (loss1 + beta * loss2 + gamma * loss3) / batch_size
+
+
+# @register_loss("gp_loss")
+# def gp_loss_pyg(data, lambda_=0.1):
+#     """
+#     Loss for 2-partition Graph Partitioning (k=2, scalar output).
+#     y = 2p - 1 maps p in [0,1] to y in [-1, 1].
+
+#     Term 1 (cut): -sum_{(i,j) in E} y_i * y_j
+#         Minimised when adjacent nodes have the same sign (same partition).
+
+#     Term 2 (balance): per-graph penalty on mean(y_g)^2
+#         Normalised by graph size so the penalty is scale-independent.
+#         Zero when the partition is perfectly balanced within each graph.
+#     """
+#     from torch_scatter import scatter
+
+#     batch_size = data.batch.unique().size(0)
+#     p = data.x.squeeze()                                          # (N,) in [0, 1]
+#     y = 2 * p - 1                                                 # (N,) in [-1, 1]
+#     src, dst = data.edge_index[0], data.edge_index[1]
+
+#     loss_cut = -torch.sum(y[src] * y[dst])
+
+#     graph_sums = scatter(y, data.batch, reduce='sum')             # (B,)
+#     n_per_graph = scatter(torch.ones_like(y), data.batch, reduce='sum')  # (B,)
+#     loss_bal = ((graph_sums / n_per_graph) ** 2).sum()            # scalar in [0, B]
+
+#     return (loss_cut + lambda_ * loss_bal) / batch_size
+
+
+### Literature version of loss:
+
+# @register_loss("gp_loss")
+# def gp_loss_pyg(data, eps=1e-9):
+#     """
+#     DMoN modularity loss (Tsitsulin et al., 2020), adapted for k=2 scalar sigmoid.
+    
+#     Modularity Q = (1 / 2m) * sum_{ij} (A_ij - d_i d_j / 2m) * delta(c_i, c_j)
+#                  = (1/2m) tr(S^T B S)  where B = A - dd^T/2m
+    
+#     Loss = -modularity + collapse_regulariser
+#     """
+#     from torch_scatter import scatter
+
+#     x = data.x.squeeze().clamp(eps, 1 - eps)
+#     src, dst = data.edge_index[0], data.edge_index[1]
+#     batch = data.batch
+#     N = x.size(0)
+#     B = batch.max().item() + 1
+
+#     S = torch.stack([x, 1 - x], dim=1)                        # (N, 2)
+
+#     # Per-graph: 2m, degree
+#     deg = scatter(torch.ones_like(src, dtype=x.dtype), src, dim=0, dim_size=N, reduce='sum')
+#     two_m_per_graph = scatter(deg, batch, dim=0, dim_size=B, reduce='sum')   # (B,)
+
+#     # tr(S^T A S) per graph (same as MinCutPool numerator)
+#     edge_contrib = (S[src] * S[dst]).sum(dim=1)
+#     edge_batch = batch[src]
+#     tr_SAS = scatter(edge_contrib, edge_batch, dim=0, dim_size=B, reduce='sum')
+
+#     # tr(S^T d d^T S / 2m) per graph = sum_c (sum_i d_i S_ic)^2 / 2m
+#     # First compute d^T S per graph and per cluster
+#     dS = deg.unsqueeze(1) * S                                  # (N, 2)
+#     dS_per_graph = scatter(dS, batch, dim=0, dim_size=B, reduce='sum')  # (B, 2)
+#     tr_SddS = (dS_per_graph ** 2).sum(dim=1) / (two_m_per_graph + eps)  # (B,)
+
+#     modularity = (tr_SAS - tr_SddS) / (two_m_per_graph + eps)  # (B,)
+#     L_mod = -modularity.mean()
+
+#     # Collapse regulariser: penalise unbalanced cluster sizes per graph
+#     # || sum_i S_i / N_g ||_F * sqrt(k) - 1
+#     cluster_sizes = scatter(S, batch, dim=0, dim_size=B, reduce='sum')  # (B, 2)
+#     n_per_graph = scatter(torch.ones_like(x), batch, dim=0, dim_size=B, reduce='sum')  # (B,)
+#     cluster_frac = cluster_sizes / n_per_graph.unsqueeze(1)
+#     L_collapse = (torch.norm(cluster_frac, dim=1) * (2 ** 0.5) - 1).mean()
+
+#     return L_mod + L_collapse

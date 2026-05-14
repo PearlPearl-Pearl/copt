@@ -350,14 +350,66 @@ def mis_decoder_pyg(batch, dec_length=300, num_seeds=1):
     return Batch.from_data_list(data_list)
 
 
+def greedy_mis(data):
+    """
+    GMIN greedy baseline for Maximum Independent Set.
+    Repeatedly selects the minimum degree node, adds it to the IS,
+    and removes it and its neighbors from the graph.
+    """
+    edge_index = remove_self_loops(data.edge_index)[0]
+    num_nodes = data.num_nodes
+
+    neighbors = {i: set() for i in range(num_nodes)}
+    for src, dst in edge_index.t().tolist():
+        neighbors[src].add(dst)
+        neighbors[dst].add(src)
+
+    remaining = set(range(num_nodes))
+    independent_set = []
+
+    while remaining:
+        node = min(remaining, key=lambda v: len(neighbors[v] & remaining))
+        independent_set.append(node)
+        to_remove = neighbors[node] & remaining
+        remaining -= to_remove
+        remaining.discard(node)
+
+    return independent_set
+
+
+def greedy_mis_size(batch, **_):
+    """
+    Runs GMIN greedy baseline over a batch and returns mean IS size.
+    """
+    data_list = batch.to_data_list()
+    sizes = []
+    for data in data_list:
+        is_nodes = greedy_mis(data)
+        sizes.append(len(is_nodes))
+    return torch.tensor(sizes, dtype=torch.float).mean()
+
+
 ### GRAPH PARTITIONING ###
 
-def gp_decoder(data):
-    # Threshold at 0.5: nodes with x >= 0.5 go to S1, rest to S2
-    x = data.x.squeeze()
-    partition = (x >= 0.5).long()  # 0 or 1 per node
-    return partition
+# def gp_decoder(data):
+#     x = data.x.squeeze()
+#     partition = (x >= 0.5).long()
+    
+#     # Debug: check balance per graph
+#     if data.batch is not None:
+#         for g_idx in data.batch.unique():
+#             mask = data.batch == g_idx
+#             p = partition[mask]
+#             print(f"Graph {g_idx}: S1={p.sum().item()}, S2={(p==0).sum().item()}")
+#     else:
+#         print(f"Single graph: S1={partition.sum().item()}, S2={(partition==0).sum().item()}")
+    
+#     return partition
 
+def gp_decoder(data):
+    # y = 2p - 1: y < 0 → partition 0, y >= 0 → partition 1
+    y = 2 * data.x.squeeze() - 1
+    return (y >= 0).long()
 
 def _edge_index_to_adj(data):
     n = data.num_nodes
@@ -367,13 +419,33 @@ def _edge_index_to_adj(data):
     return A
 
 
+# def gp_gnn_ncut_pyg(batch, k=2):
+#     """Normalised cut of the GNN's partition (threshold data.x at 0.5)."""
+#     from utils.spectral import normalised_cut
+#     data_list = batch.to_data_list()
+#     ncut_list = []
+#     for data in data_list:
+#         labels = gp_decoder(data).cpu().numpy()
+#         A = _edge_index_to_adj(data)
+#         ncut_list.append(normalised_cut(A, labels, k))
+#     return torch.tensor(ncut_list, dtype=torch.float).mean()
+
 def gp_gnn_ncut_pyg(batch, k=2):
-    """Normalised cut of the GNN's partition (threshold data.x at 0.5)."""
+    """Normalised cut of the GNN's partition (threshold data.x at 0.5).
+    
+    Degenerate partitions (where fewer than k clusters are populated) are
+    assigned a sentinel value of k (the worst-case for normalised cut) so
+    they don't get silently rewarded as ncut=0.
+    """
     from utils.spectral import normalised_cut
     data_list = batch.to_data_list()
     ncut_list = []
     for data in data_list:
         labels = gp_decoder(data).cpu().numpy()
+        if len(np.unique(labels)) < k:
+            # Degenerate: fewer than k clusters populated
+            ncut_list.append(float(k))
+            continue
         A = _edge_index_to_adj(data)
         ncut_list.append(normalised_cut(A, labels, k))
     return torch.tensor(ncut_list, dtype=torch.float).mean()

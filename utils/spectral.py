@@ -44,17 +44,34 @@ def spectral_partition(A, k, kmeans_seed=0, n_init=10):
     return labels
 
 
-def normalised_cut(A, labels, k):
-    """
-    Compute the normalised cut value for a given partition.
+# def normalised_cut(A, labels, k):
+#     """
+#     Compute the normalised cut value for a given partition.
 
-    NCut = sum_i  cut(P_i, V\P_i) / vol(P_i)
-    where vol(P_i) = sum of degrees of nodes in P_i.
-    """
+#     NCut = sum_i  cut(P_i, V\P_i) / vol(P_i)
+#     where vol(P_i) = sum of degrees of nodes in P_i.
+#     """
+#     ncut = 0.0
+#     degrees = A.sum(axis=1)
+#     for i in range(k):
+#         mask = labels == i
+#         vol = degrees[mask].sum()
+#         if vol == 0:
+#             continue
+#         cut = A[mask][:, ~mask].sum()
+#         ncut += cut / vol
+#     return ncut
+
+def normalised_cut(A, labels, k, penalise_empty=True):
     ncut = 0.0
     degrees = A.sum(axis=1)
     for i in range(k):
         mask = labels == i
+        if not mask.any():           # empty cluster
+            if penalise_empty:
+                return float('nan')  # or return k as a "max bad" sentinel
+            else:
+                continue
         vol = degrees[mask].sum()
         if vol == 0:
             continue
