@@ -4,7 +4,7 @@ import warnings
 from typing import Optional
 
 import torch
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger, CSVLogger
 from torch.utils.data import DataLoader
 
 from torch_geometric.data.lightning.datamodule import LightningDataModule
@@ -49,6 +49,10 @@ def train(model: GraphGymModule, datamodule, logger: bool = True,
     callbacks.append(lr_monitor)
 
     trainer_config = trainer_config or {}
+    loggers = [CSVLogger(save_dir=cfg.out_dir)]
+    if cfg.wandb.use:
+        loggers.append(WandbLogger(**cfg.wandb))
+
     trainer = pl.Trainer(
         **trainer_config,
         enable_checkpointing=cfg.train.enable_ckpt,
@@ -58,11 +62,9 @@ def train(model: GraphGymModule, datamodule, logger: bool = True,
         accelerator=cfg.accelerator,
         devices='auto' if not torch.cuda.is_available() else cfg.devices,
         check_val_every_n_epoch=cfg.train.val_period,
-        accumulate_grad_batches=cfg.optim.batch_accumulation
+        accumulate_grad_batches=cfg.optim.batch_accumulation,
+        logger=loggers,
     )
-
-    if cfg.wandb.use:
-        trainer.logger = WandbLogger(**cfg.wandb)
 
     if not cfg.train.mode == 'copt_test':
         trainer.fit(model, datamodule=datamodule)
