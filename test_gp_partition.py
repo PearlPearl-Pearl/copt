@@ -1,167 +1,213 @@
 """
 test_gp_partition.py
 
-Builds a simple 5-node graph, applies:
-  - spectral partitioning  (heuristic baseline)
-  - GNN decoder            (probabilities loaded from probs_test.pt)
+Loads the real GP test dataset, matches each graph to its slice of
+probs_test.pt (the GNN's actual output), then visualises GNN prediction
+vs spectral baseline side-by-side for one chosen graph.
 
-Visualises both side-by-side with cut edges in red.
+The probabilities genuinely come from the trained model running on this
+exact graph — no placeholder values.
 
 Usage:
-    python test_gp_partition.py                  # default 5-node graph
-    python test_gp_partition.py --n 10 --seed 7  # different size/seed
-    python test_gp_partition.py --out my_fig.png
+    python test_gp_partition.py --cfg configs/benchmarks/gp/gp_sbm_small.yaml
+    python test_gp_partition.py --cfg configs/benchmarks/gp/gp_sbm_small.yaml --graph_idx 3
+    python test_gp_partition.py --cfg configs/benchmarks/gp/gp_sbm_small.yaml --graph_idx 0 --out my_fig.png
 """
 
 import argparse
-import glob
 import os
 import sys
+import glob
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.lines as mlines
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 import networkx as nx
 import numpy as np
 import torch
+from torch_geometric.utils import remove_self_loops
 
-from utils.sbm import stochastic_block_model
+# ── GraphGym init (mirrors main.py) ──────────────────────────────────────────
+import graphgym  # noqa — registers all custom modules
+from torch_geometric.graphgym.config import cfg, set_cfg, load_cfg, makedirs_rm_exist
+from torch_geometric.graphgym.utils.device import auto_select_device
+from graphgym.patches import create_loader
+from modules.architecture.copt_module import create_model
+
 from utils.spectral import spectral_partition
 
-COLORS = ["#4878CF", "#D65F5F"]   # blue = partition 0,  red = partition 1
+COLORS = ["#4878CF", "#D65F5F"]   # blue = P0,  red = P1
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
-
-def find_probs_file():
-    """Return the most recently modified probs_test.pt under results/."""
-    pattern = os.path.join("results", "**", "probs_test.pt")
-    candidates = glob.glob(pattern, recursive=True)
-    if not candidates:
-        return None
-    return max(candidates, key=os.path.getmtime)
-
 
 def decode_gnn(probs: np.ndarray) -> np.ndarray:
     """y = 2p − 1;  y < 0 → partition 0,  y ≥ 0 → partition 1."""
     return ((2 * probs - 1) >= 0).astype(int)
 
 
-def cut_size(edges, labels) -> int:
-    return sum(1 for u, v in edges if labels[u] != labels[v])
+def cut_fraction(edge_index, labels) -> float:
+    ei = remove_self_loops(edge_index)[0].cpu().numpy()
+    total = ei.shape[1] // 2
+    cut   = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2
+    return cut / total if total > 0 else 0.0
 
 
-# ── visualisation ─────────────────────────────────────────────────────────────
+def adj_numpy(data) -> np.ndarray:
+    n  = data.num_nodes
+    ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
+    A  = np.zeros((n, n), dtype=np.float32)
+    A[ei[0], ei[1]] = 1.0
+    return A
 
-def draw_partition(ax, G, pos, probs, labels, title):
-    cut  = [(u, v) for u, v in G.edges() if labels[u] != labels[v]]
-    same = [(u, v) for u, v in G.edges() if labels[u] == labels[v]]
-    n_cut = len(cut)
+
+def find_probs(run_dir: str):
+    path = os.path.join(run_dir, "probs_test.pt")
+    if os.path.exists(path):
+        return path
+    # fall back: most recent across all runs
+    candidates = glob.glob("results/**/probs_test.pt", recursive=True)
+    return max(candidates, key=os.path.getmtime) if candidates else None
+
+
+def draw_partition(ax, G, pos, probs, labels, title, cf):
+    cut_e  = [(u, v) for u, v in G.edges() if labels[u] != labels[v]]
+    same_e = [(u, v) for u, v in G.edges() if labels[u] == labels[v]]
 
     nx.draw_networkx_nodes(G, pos,
                            node_color=[COLORS[l] for l in labels],
-                           node_size=700, ax=ax)
-    # label each node with its index and probability
-    node_labels = {i: f"{i}\np={probs[i]:.2f}" for i in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels=node_labels,
-                            font_size=7, font_color="white", ax=ax)
-    nx.draw_networkx_edges(G, pos, edgelist=same,
-                           edge_color="#aaaaaa", alpha=0.6, width=1.5, ax=ax)
-    nx.draw_networkx_edges(G, pos, edgelist=cut,
-                           edge_color="crimson", width=2.5,
-                           style="dashed", ax=ax)
+                           node_size=400, ax=ax)
+    nx.draw_networkx_labels(G, pos,
+                            labels={i: f"{i}\np={probs[i]:.5f}" for i in G.nodes()},
+                            font_size=6, font_color="white", ax=ax)
+    nx.draw_networkx_edges(G, pos, edgelist=same_e,
+                           edge_color="#aaaaaa", alpha=0.5, ax=ax)
+    nx.draw_networkx_edges(G, pos, edgelist=cut_e,
+                           edge_color="crimson", width=2.5, style="dashed", ax=ax)
 
-    ax.set_title(f"{title}\ncut size = {n_cut}", fontsize=11, pad=10)
+    ax.set_title(f"{title}\ncut fraction = {cf:.4f}  ({len(cut_e)} cut edges)",
+                 fontsize=11, pad=8)
     ax.axis("off")
-
-    legend = [
+    ax.legend(handles=[
         mpatches.Patch(facecolor=COLORS[0], label="Partition 0"),
         mpatches.Patch(facecolor=COLORS[1], label="Partition 1"),
-        mlines.Line2D([], [], color="crimson", linewidth=2,
-                      linestyle="dashed", label=f"Cut edges ({n_cut})"),
-    ]
-    ax.legend(handles=legend, loc="lower left", fontsize=8, framealpha=0.85)
+        mlines.Line2D([], [], color="crimson", lw=2, linestyle="dashed",
+                      label=f"Cut ({len(cut_e)})"),
+    ], loc="lower left", fontsize=8, framealpha=0.85)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n",    type=int,   default=5,   help="Number of nodes")
-    parser.add_argument("--k",    type=int,   default=2,   help="Number of partitions")
-    parser.add_argument("--p_in", type=float, default=0.8, help="Intra-community edge prob")
-    parser.add_argument("--p_out",type=float, default=0.1, help="Inter-community edge prob")
-    parser.add_argument("--seed", type=int,   default=42,  help="Random seed")
-    parser.add_argument("--out",  type=str,   default="gp_partition_test.png")
+    parser.add_argument("--cfg", required=True,
+                        help="GP YAML config, e.g. configs/benchmarks/gp/gp_sbm_small.yaml")
+    parser.add_argument("--graph_idx", type=int, default=0,
+                        help="Which test graph to visualise (0-indexed)")
+    parser.add_argument("--out", default="gp_partition_test.png")
+    parser.add_argument("opts", nargs=argparse.REMAINDER,
+                        help="Extra cfg overrides, e.g. dataset.split_index 1")
     args = parser.parse_args()
 
-    # ── generate graph ────────────────────────────────────────────────────────
-    A, true_labels = stochastic_block_model(
-        args.n, args.k, args.p_in, args.p_out, seed=args.seed)
+    # ── mirror main.py config init ────────────────────────────────────────────
+    set_cfg(cfg)
+    cfg.train.mode = None          # required before load_cfg (unregistered key)
 
-    rows, cols = np.where(np.triu(A, k=1) > 0)
-    edges = list(zip(rows.tolist(), cols.tolist()))
+    # load_cfg expects args.cfg_file and args.opts
+    class _Args:
+        cfg_file = args.cfg
+        opts     = args.opts or []
+    load_cfg(cfg, _Args())
 
-    G = nx.Graph()
-    G.add_nodes_from(range(args.n))
-    G.add_edges_from(edges)
-    pos = nx.spring_layout(G, seed=args.seed)
+    # reproduce the run directory so we find probs_test.pt in the right place
+    cfg_stem  = os.path.splitext(os.path.basename(args.cfg))[0]
+    run_name  = f"{cfg_stem}-{cfg.wandb.name}"
+    cfg.out_dir  = os.path.join(cfg.out_dir, run_name)
+    cfg.run_dir  = os.path.join(cfg.out_dir, "0")
 
-    print(f"Graph: N={args.n}, K={args.k}, "
-          f"p_in={args.p_in}, p_out={args.p_out}, seed={args.seed}")
-    print(f"Edges : {edges}")
-    print(f"Ground-truth partitions: "
-          + "  ".join(f"P{i}={np.where(true_labels==i)[0].tolist()}"
-                      for i in range(args.k)))
+    cfg.dataset.split_index = 0
+    auto_select_device()
+
+    # ── load test dataset (shuffle=False → same order as probs_test.pt) ──────
+    print("Loading test dataset …")
+    loaders     = create_loader()
+    test_loader = loaders[-1]          # train / val / test
+
+    # collect all test graphs in the exact same order the model saw them
+    test_graphs = []
+    for batch in test_loader:
+        test_graphs.extend(batch.to_data_list())
+
+    n_test = len(test_graphs)
+    print(f"Test set: {n_test} graphs  "
+          f"(nodes per graph: {[g.num_nodes for g in test_graphs[:5]]} …)")
+
+    if args.graph_idx >= n_test:
+        sys.exit(f"[error] --graph_idx {args.graph_idx} is out of range "
+                 f"(test set has {n_test} graphs, 0-indexed)")
+
+    # ── locate and load probs_test.pt ─────────────────────────────────────────
+    probs_path = find_probs(cfg.run_dir)
+    if probs_path is None:
+        sys.exit("[error] probs_test.pt not found. "
+                 "Run training with log_probs: true and test the model first.")
+    print(f"Probabilities : {probs_path}")
+
+    all_probs = torch.load(probs_path, map_location="cpu").float().numpy()
+    print(f"Total probs   : {len(all_probs)}  "
+          f"(should equal total test nodes = "
+          f"{sum(g.num_nodes for g in test_graphs)})")
+
+    # ── slice out this graph's probabilities ──────────────────────────────────
+    offset = sum(g.num_nodes for g in test_graphs[:args.graph_idx])
+    data   = test_graphs[args.graph_idx]
+    n      = data.num_nodes
+    gnn_probs = all_probs[offset : offset + n]
+
+    print(f"\nGraph {args.graph_idx}: {n} nodes, "
+          f"offset={offset}:{offset+n}")
+    print(f"GNN probs  min={gnn_probs.min():.4f}  "
+          f"max={gnn_probs.max():.4f}  "
+          f"mean={gnn_probs.mean():.4f}")
+
+    # ── decode GNN partition ──────────────────────────────────────────────────
+    gnn_labels = decode_gnn(gnn_probs)
+    gnn_cf     = cut_fraction(data.edge_index, gnn_labels)
+    p0, p1     = (gnn_labels == 0).sum(), (gnn_labels == 1).sum()
+    print(f"GNN partition : P0={p0} nodes  P1={p1} nodes  "
+          f"cut fraction={gnn_cf:.4f}")
 
     # ── spectral baseline ─────────────────────────────────────────────────────
-    spectral_labels = spectral_partition(A, args.k)
-    spectral_probs  = np.where(spectral_labels == 0, 0.1, 0.9).astype(float)
-    s_cut = cut_size(edges, spectral_labels)
+    A               = adj_numpy(data)
+    k               = cfg.metrics.gp.k
+    spectral_labels = spectral_partition(A, k)
+    spectral_probs  = np.where(spectral_labels == 0, 0.05, 0.95).astype(float)
+    spectral_cf     = cut_fraction(data.edge_index, spectral_labels)
+    s0, s1          = (spectral_labels == 0).sum(), (spectral_labels == 1).sum()
+    print(f"Spectral      : P0={s0} nodes  P1={s1} nodes  "
+          f"cut fraction={spectral_cf:.4f}")
 
-    print(f"\nSpectral  → partitions: "
-          + "  ".join(f"P{i}={np.where(spectral_labels==i)[0].tolist()}"
-                      for i in range(args.k)))
-    print(f"Spectral cut size : {s_cut}")
-
-    # ── GNN probabilities — load from probs_test.pt ───────────────────────────
-    probs_path = find_probs_file()
-    if probs_path is None:
-        print("\n[warn] No probs_test.pt found under results/ — using random probs.")
-        rng = np.random.default_rng(args.seed + 99)
-        gnn_probs = rng.uniform(0, 1, size=args.n)
-        probs_note = "random placeholder"
-    else:
-        all_probs = torch.load(probs_path, map_location="cpu").float().numpy()
-        gnn_probs = all_probs[:args.n]
-        probs_note = os.path.relpath(probs_path)
-        print(f"\nLoaded GNN probs from : {probs_note}")
-        print(f"  (taking first {args.n} of {len(all_probs)} values)")
-
-    gnn_labels = decode_gnn(gnn_probs)
-    g_cut = cut_size(edges, gnn_labels)
-
-    print(f"\nGNN probs : {np.round(gnn_probs, 4).tolist()}")
-    print(f"GNN y=2p-1: {np.round(2*gnn_probs-1, 4).tolist()}")
-    print(f"GNN labels: {gnn_labels.tolist()}  "
-          + "  ".join(f"P{i}={np.where(gnn_labels==i)[0].tolist()}"
-                      for i in range(args.k)))
-    print(f"GNN cut size       : {g_cut}")
+    # ── build networkx graph ──────────────────────────────────────────────────
+    ei   = remove_self_loops(data.edge_index)[0].cpu().numpy()
+    mask = ei[0] < ei[1]
+    G    = nx.Graph()
+    G.add_nodes_from(range(n))
+    G.add_edges_from(zip(ei[0][mask], ei[1][mask]))
+    pos  = nx.spring_layout(G, seed=42)
 
     # ── plot ──────────────────────────────────────────────────────────────────
-    fig, axes = plt.subplots(1, 2, figsize=(13, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     fig.suptitle(
-        f"Graph Partitioning — N={args.n} SBM  "
-        f"(p_in={args.p_in}, p_out={args.p_out})",
+        f"Graph Partitioning — test graph {args.graph_idx}  "
+        f"({n} nodes,  {G.number_of_edges()} edges,  k={k})",
         fontsize=13,
     )
-
     draw_partition(axes[0], G, pos, spectral_probs, spectral_labels,
-                   "Spectral baseline")
-    draw_partition(axes[1], G, pos, gnn_probs,      gnn_labels,
-                   f"GNN  [{probs_note}]")
+                   "Spectral baseline", spectral_cf)
+    draw_partition(axes[1], G, pos, gnn_probs, gnn_labels,
+                   "GNN prediction", gnn_cf)
 
     plt.tight_layout()
     plt.savefig(args.out, dpi=150)

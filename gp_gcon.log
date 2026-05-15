@@ -1,0 +1,819 @@
+WARNING:root:dataset.transductive changed to False for graph task.
+[*] Run ID 0: seed=0, split_index=0
+    Starting now: 2026-05-15 16:19:10.841046
+  0%|          | 0/5000 [00:00<?, ?it/s]100%|██████████| 5000/5000 [00:00<00:00, 7006.70it/s]
+[*] Loaded dataset 'small' from 'sbm':
+/home/guest/anaconda3/envs/main_paper_env/lib/python3.10/site-packages/torch_geometric/data/in_memory_dataset.py:300: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  warnings.warn(msg)
+  Data(edge_index=[2, 11329104], weight=[11329104], partition_labels=[373642], num_partitions=[5000], degree=[373642, 1], cluster_coefficient=[373642, 1], triangle_count=[373642, 1], num_nodes=373642, x=[373642, 1], y=[373642, 1])
+  undirected: True
+  num graphs: 5000
+/home/guest/anaconda3/envs/main_paper_env/lib/python3.10/site-packages/torch_geometric/data/in_memory_dataset.py:300: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. The data of the dataset is already cached, so any modifications to `data` will not be reflected when accessing its elements. Clearing the cache now by removing all elements in `dataset._data_list`. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  warnings.warn(msg)
+  avg num_nodes/graph: 74
+  num node features: 1
+  num edge features: 0
+  num classes: (appears to be a regression task)
+Precomputing Positional Encoding statistics: ['GraphStats'] for all graphs...
+  ...estimated to be undirected: True
+  0%|          | 0/5000 [00:00<?, ?it/s]100%|██████████| 5000/5000 [00:00<00:00, 7077.54it/s]
+Done! Took 00:00:00.87
+Finished processing data:
+  Data(edge_index=[2, 11329104], weight=[11329104], partition_labels=[373642], num_partitions=[5000], degree=[373642, 1], cluster_coefficient=[373642, 1], triangle_count=[373642, 1], x=[373642, 1], y=[373642, 1], num_nodes=373642, train_graph_index=[3000], val_graph_index=[1000], test_graph_index=[1000])
+COPTModule(
+  (model): GNN(
+    (encoder): FeatureEncoder(
+      (node_encoder): GraphStatsEncoder(
+        (linear_x): Linear(in_features=1, out_features=224, bias=True)
+        (pe_encoder): Linear(in_features=3, out_features=32, bias=True)
+      )
+      (node_encoder_bn): BatchNorm1dNode(
+        (bn): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (pre_mp): GeneralMultiLayer(
+      (Layer_0): GeneralLayer(
+        (layer): Linear(
+          (model): Linear(256, 256, bias=False)
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (Layer_1): GeneralLayer(
+        (layer): Linear(
+          (model): Linear(256, 256, bias=False)
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (Layer_2): GeneralLayer(
+        (layer): Linear(
+          (model): Linear(256, 256, bias=False)
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (Layer_3): GeneralLayer(
+        (layer): Linear(
+          (model): Linear(256, 256, bias=False)
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+    )
+    (mp): GNNStackStage(
+      (layer0): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer1): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer2): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer3): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer4): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer5): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer6): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer7): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer8): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer9): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer10): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer11): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer12): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer13): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer14): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+      (layer15): GeneralLayer(
+        (layer): HybridConvLayer(
+          (model): HybridConv_v2(256, 256, channel_list=[[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]])
+        )
+        (post_layer): Sequential(
+          (0): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (1): Dropout(p=0.3, inplace=False)
+          (2): ELU(alpha=1.0)
+        )
+      )
+    )
+    (post_mp): COPTInductiveNodeHead(
+      (layer_post_mp): MLP_custom_act(
+        (model): Sequential(
+          (0): Linear(
+            (model): Linear(256, 1, bias=True)
+          )
+        )
+      )
+      (last_act): Sigmoid()
+    )
+  )
+)
+accelerator: cpu
+ba:
+  large:
+    n_max: 1200
+    n_min: 800
+  n_max: 300
+  n_min: 200
+  num_edges: 4
+  num_samples: 5000
+  small:
+    n_max: 300
+    n_min: 200
+  supp_mtx: ['edge_index']
+benchmark: False
+bn:
+  eps: 1e-05
+  mom: 0.1
+bp:
+  mean: 10
+  n_max: 30
+  n_min: 10
+  num_samples: 10000
+  p_edge_bp: 0.3
+  p_edge_er: 0.1
+  supp_mtx: ['edge_index']
+  v20_00:
+    mean: 20
+    p_edge_er: 0.0
+  v20_01:
+    mean: 20
+    p_edge_er: 0.1
+  v20_02:
+    mean: 20
+    p_edge_er: 0.2
+  v20_03:
+    mean: 20
+    p_edge_er: 0.3
+cfg_dest: config.yaml
+custom_metrics: []
+dataset:
+  append_stats: False
+  cache_load: False
+  cache_save: False
+  dir: ./datasets
+  edge_dim: 128
+  edge_encoder: False
+  edge_encoder_bn: True
+  edge_encoder_name: Bond
+  edge_encoder_num_types: 0
+  edge_message_ratio: 0.8
+  edge_negative_sampling_ratio: 1.0
+  edge_train_mode: all
+  encoder: True
+  encoder_bn: True
+  encoder_dim: 128
+  encoder_name: db
+  format: sbm
+  graph_stats: ['degree', 'cluster_coefficient', 'triangle_count']
+  input_node_encoders: none
+  label: False
+  label_column: none
+  label_table: none
+  location: local
+  multiprocessing: True
+  name: small
+  node_encoder: True
+  node_encoder_bn: True
+  node_encoder_name: GraphStats
+  node_encoder_num_types: 0
+  output_graph_encoders: none
+  output_node_encoders: none
+  remove_feature: False
+  resample_disjoint: False
+  resample_negative: False
+  shuffle_split: True
+  slic_compactness: 10
+  split: [0.8, 0.1, 0.1]
+  split_dir: splits
+  split_index: 0
+  split_mode: cv-kfold-5
+  task: graph
+  task_type: classification
+  to_undirected: False
+  transductive: False
+  transform: none
+  tu_simple: True
+  umg_random_seed: 0
+  umg_test_ratio: 0.1
+  umg_train_ratio: 0.8
+  umg_val_ratio: 0.1
+  unique_mol_graphs: False
+devices: None
+dim_in: None
+dim_out: 1
+er:
+  n_max: 15
+  n_min: 8
+  num_samples: 10000
+  p: 0.4
+  supp_mtx: ['edge_index']
+  v50_02:
+    n_max: 50
+    n_min: 30
+    p: 0.2
+  v50_03:
+    n_max: 50
+    n_min: 30
+    p: 0.3
+  v50_04:
+    n_max: 50
+    n_min: 30
+    p: 0.4
+er_test:
+  n_max: 15
+  n_min: 8
+  num_samples: 100
+  p: 0.4
+  supp_mtx: ['edge_index']
+example_arg: example
+example_group:
+  example_arg: example
+gnn:
+  act: elu
+  agg: mean
+  att_concat_proj: False
+  att_dropout: 0.0
+  att_final_linear: False
+  att_final_linear_bn: False
+  att_heads: 1
+  batchnorm: True
+  clear_feature: True
+  dim_inner: 256
+  dropout: 0.3
+  graphnorm: False
+  gsn: False
+  head: copt_inductive_node
+  hybrid:
+    activation: leaky_relu
+    activation_att1: relu
+    activation_att2: relu
+    add_self_loops: True
+    channel_list: [[1], [2], [4], [0, 1], [1, 2], [2, 4]]
+    combine_fn: att_bias
+    filter_norm_dim: None
+    norm: gcn
+    num_heads: 1
+    residual: True
+  hybrid_stack: concat
+  hybrid_v2:
+    channel_list: [[0], [1], [2], [4], [0, 1], [1, 2], [2, 4]]
+    depth_mlp: 1
+    num_heads: 1
+    skip: False
+  keep_edge: 0.5
+  l2norm: True
+  last_act: sigmoid
+  last_norm: None
+  layer_type: gcon
+  layers_mp: 16
+  layers_post_mp: 1
+  layers_pre_mp: 4
+  msg_direction: single
+  multi_head_dim_inner: None
+  normalize_adj: False
+  residual: False
+  self_msg: concat
+  skip_every: 1
+  stage_type: skipsum
+gp_loss:
+  
+gpu_mem: False
+graph_norm:
+  clip_var: 1e-05
+  enable: False
+  eps: 1e-05
+  name: GraphNorm
+  name_in: y
+  name_out: y
+graphenc_CycleGE:
+  enable: False
+  kernel:
+    times: []
+    times_func: 
+graphenc_RWGE:
+  enable: False
+  kernel:
+    times: []
+    times_func: 
+gt:
+  attn_dropout: 0.0
+  batch_norm: True
+  bigbird:
+    add_cross_attention: False
+    attention_type: block_sparse
+    block_size: 3
+    chunk_size_feed_forward: 0
+    hidden_act: relu
+    is_decoder: False
+    layer_norm_eps: 1e-06
+    max_position_embeddings: 128
+    num_random_blocks: 3
+    use_bias: False
+  dim_hidden: 64
+  dropout: 0.0
+  full_graph: True
+  gamma: 1e-05
+  layer_norm: False
+  layer_type: SANLayer
+  layers: 3
+  n_heads: 8
+  pna_degrees: []
+  residual: True
+hash_feat:
+  enable: False
+  gnn_act: relu
+  gnn_dim_inner: 128
+  gnn_name: GIN
+  gnn_num_layers: 5
+  graph_format: edge_index
+  name_in: y
+  name_out: y
+maxclique_loss:
+  beta: 0.1
+maxcut_loss:
+  
+mds_loss:
+  beta: 1.0
+mem:
+  inplace: False
+metric_agg: argmin
+metric_best: gnn_cut
+metrics:
+  gp:
+    k: 2
+  maxclique:
+    dec_length: 300
+    num_seeds: 1
+  mds:
+    enable: True
+    num_seeds: 1
+  mis:
+    dec_length: 100
+mis_loss:
+  beta: 1.0
+model:
+  edge_decoding: dot
+  graph_pooling: mean
+  loss_fun: gp_loss
+  match_upper: True
+  size_average: mean
+  thresh: 0.5
+  type: gnn
+name_tag: 
+num_threads: 6
+num_workers: 4
+optim:
+  base_lr: 0.003
+  batch_accumulation: 1
+  clip_grad_norm: False
+  entropy:
+    base_temp: 1.0
+    enable: False
+    min_temp: 0.001
+    scheduler: linear-energy
+  eval_period: 10
+  flag_step_size: 0.001
+  flag_steps: 3
+  lr_decay: 0.1
+  max_epoch: 100
+  min_lr: 0.0
+  momentum: 0.9
+  num_warmup_epochs: 5
+  optimizer: adam
+  reduce_factor: 0.1
+  schedule_patience: 10
+  scheduler: cosine_with_warmup
+  steps: [30, 60, 90]
+  weight_decay: 1e-05
+out_dir: results/gp_sbm_small-gp_sbm_small
+pc:
+  clique_size: None
+  graph_size: 500
+  num_samples: 1000
+  supp_mtx: ['edge_index']
+  v100_40:
+    clique_size: 40
+    graph_size: 100
+  v500_20:
+    clique_size: None
+    graph_size: 500
+plantedclique_loss:
+  
+posenc_BernoulliRE:
+  dim_pe: 20
+  enable: False
+posenc_DiracFixedRE:
+  dim_pe: 1
+  enable: False
+posenc_ElstaticPE:
+  dim_pe: 16
+  enable: False
+  kernel:
+    times: []
+    times_func: range(7)
+  layers: 3
+  model: none
+  n_heads: 4
+  pass_as_var: False
+  post_layers: 0
+  raw_norm_type: none
+posenc_EquivStableLapPE:
+  eigen:
+    eigvec_abs: False
+    eigvec_norm: L2
+    laplacian_norm: sym
+    max_freqs: 10
+    skip_zero_freq: False
+    stack_eigval: False
+  enable: False
+  raw_norm_type: none
+posenc_GraphLog:
+  dim_pe: 16
+  enable: False
+  layers: 3
+  model: none
+  model_dir: pretrained_models/graphlog.pth
+  n_heads: 4
+  pass_as_var: False
+  post_layers: 0
+  raw_norm_type: none
+posenc_GraphStats:
+  dim_pe: 32
+  enable: True
+  layers: 3
+  model: Linear
+  n_heads: 4
+  pass_as_var: False
+  post_layers: 0
+  raw_norm_type: none
+posenc_HKdiagSE:
+  dim_pe: 16
+  enable: False
+  kernel:
+    times: []
+    times_func: 
+  layers: 3
+  model: none
+  n_heads: 4
+  pass_as_var: False
+  post_layers: 0
+  raw_norm_type: none
+posenc_LapPE:
+  dim_pe: 32
+  eigen:
+    eigvec_abs: True
+    eigvec_norm: L2
+    laplacian_norm: none
+    max_freqs: 4
+    skip_zero_freq: True
+    stack_eigval: False
+  enable: False
+  layers: 2
+  model: DeepSet
+  n_heads: 4
+  pass_as_var: False
+  post_layers: 0
+  raw_norm_type: none
+posenc_NormalFixedRE:
+  dim_pe: 20
+  enable: False
+posenc_NormalRE:
+  dim_pe: 16
+  enable: False
+posenc_RWSE:
+  dim_pe: 32
+  enable: False
+  kernel:
+    times: []
+    times_func: range(2,22)
+  layers: 3
+  model: Linear
+  n_heads: 4
+  pass_as_var: False
+  post_layers: 0
+  raw_norm_type: BatchNorm
+posenc_SignNet:
+  dim_pe: 16
+  eigen:
+    eigvec_abs: False
+    eigvec_norm: L2
+    laplacian_norm: sym
+    max_freqs: 10
+    skip_zero_freq: False
+    stack_eigval: False
+  enable: False
+  layers: 3
+  model: none
+  n_heads: 4
+  pass_as_var: False
+  phi_hidden_dim: 64
+  phi_out_dim: 4
+  post_layers: 0
+  raw_norm_type: none
+posenc_UniformRE:
+  dim_pe: 20
+  enable: False
+pretrained:
+  dir: 
+  freeze_main: False
+  reset_prediction_head: True
+pretrained_exact:
+  model_dir: 
+print: both
+randenc_BernoulliSE:
+  dim_pe: 9
+  enable: False
+  threshold: 0.5
+randenc_DiracRE:
+  dim_pe: 1
+  enable: False
+randenc_FixedSE:
+  dim_pe: 1
+  enable: False
+randenc_NormalSE:
+  dim_pe: 9
+  enable: False
+randenc_UniformSE:
+  dim_pe: 9
+  enable: False
+rb:
+  large:
+    k: (20, 25)
+    n: (800, 1200)
+    na: (40, 55)
+    num_samples: 4500
+  num_samples: 4500
+  small:
+    k: (5, 12)
+    n: (200, 300)
+    na: (20, 25)
+    num_samples: 4500
+round: 5
+run_dir: results/gp_sbm_small-gp_sbm_small/0
+run_id: 0
+run_multiple_splits: []
+satlib:
+  gen_labels: False
+  weighted: False
+sbm:
+  k: 2
+  large:
+    k: 3
+    n_max: 400
+    n_min: 200
+    p_in: 0.6
+    p_out: 0.05
+  n_max: 100
+  n_min: 50
+  num_samples: 5000
+  p_in: 0.7
+  p_out: 0.1
+  small:
+    k: 2
+    n_max: 100
+    n_min: 50
+    p_in: 0.7
+    p_out: 0.1
+  supp_mtx: ['edge_index']
+seed: 0
+share:
+  dim_in: 1
+  dim_out: 1
+  num_graph_targets: -1
+  num_node_targets: 1
+  num_splits: 3
+ssl:
+  encoder:
+    agg: sum
+    batchnorm: True
+    dim_inner: 128
+    layers_mp: 5
+    type: gin
+  model:
+    aug1: none
+    aug2: GraphCL
+    aug_ratio: 0.2
+    tau: 0.2
+    type: GraphCL
+  trainer:
+    batch_size: 256
+    lr: 0.01
+    max_epoch: 20
+    optimizer: Adam
+    weight_decay: 0.0
+tensorboard_agg: True
+tensorboard_each_run: False
+test: False
+train:
+  auto_resume: False
+  batch_size: 256
+  batch_size_val: 256
+  ckpt_best: True
+  ckpt_clean: True
+  ckpt_monitor: loss/valid
+  ckpt_period: 100
+  enable_ckpt: True
+  epoch_resume: -1
+  eval_period: 10
+  iter_per_epoch: 32
+  log_probs: True
+  mode: copt
+  neighbor_sizes: [20, 15, 10, 5]
+  node_per_graph: 32
+  radius: extend
+  record_individual_scores: False
+  sample_node: False
+  sampler: full_batch
+  skip_train_eval: False
+  task: gp
+  test_dump_ckpt_path: None
+  test_dump_period: 10
+  val_period: 1
+  walk_length: 4
+val:
+  accelerator: default
+  drop_last: False
+  node_per_graph: 32
+  radius: extend
+  sample_node: False
+  sampler: full_batch
+view_emb: False
+virtual_node: False
+wandb:
+  entity: gtransformers
+  name: gp_sbm_small
+  project: copt-gp
+  use: False
+Num parameters: 8678721
+GPU available: False, used: False
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+
+  | Name  | Type | Params | Mode 
+---------------------------------------
+0 | model | GNN  | 8.7 M  | train
+---------------------------------------
+8.7 M     Trainable params
+0         Non-trainable params
+8.7 M     Total params
+34.715    Total estimated model params size (MB)
+493       Modules in train mode
+0         Modules in eval mode
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]Sanity Checking:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0:  50%|█████     | 1/2 [00:08<00:08,  0.12it/s]Sanity Checking DataLoader 0: 100%|██████████| 2/2 [00:15<00:00,  0.13it/s]                                                                           /home/guest/anaconda3/envs/main_paper_env/lib/python3.10/site-packages/pytorch_lightning/loops/fit_loop.py:298: The number of training batches (12) is smaller than the logging interval Trainer(log_every_n_steps=50). Set a lower value for log_every_n_steps if you want to see logs for the training epoch.
+Training: |          | 0/? [00:00<?, ?it/s]Training:   0%|          | 0/12 [00:00<?, ?it/s]Epoch 0:   0%|          | 0/12 [00:00<?, ?it/s] Epoch 0:   8%|▊         | 1/12 [00:13<02:33,  0.07it/s]Epoch 0:   8%|▊         | 1/12 [00:13<02:33,  0.07it/s, v_num=24, loss/train=3.68e+6]Epoch 0:  17%|█▋        | 2/12 [00:27<02:16,  0.07it/s, v_num=24, loss/train=3.68e+6]Epoch 0:  17%|█▋        | 2/12 [00:27<02:16,  0.07it/s, v_num=24, loss/train=3.78e+6]Epoch 0:  25%|██▌       | 3/12 [00:40<02:00,  0.07it/s, v_num=24, loss/train=3.78e+6]Epoch 0:  25%|██▌       | 3/12 [00:40<02:00,  0.07it/s, v_num=24, loss/train=3.71e+6]Epoch 0:  33%|███▎      | 4/12 [00:52<01:44,  0.08it/s, v_num=24, loss/train=3.71e+6]Epoch 0:  33%|███▎      | 4/12 [00:52<01:44,  0.08it/s, v_num=24, loss/train=3.71e+6]Epoch 0:  42%|████▏     | 5/12 [01:04<01:30,  0.08it/s, v_num=24, loss/train=3.71e+6]Epoch 0:  42%|████▏     | 5/12 [01:04<01:30,  0.08it/s, v_num=24, loss/train=3.6e+6] Epoch 0:  50%|█████     | 6/12 [01:18<01:18,  0.08it/s, v_num=24, loss/train=3.6e+6]Epoch 0:  50%|█████     | 6/12 [01:18<01:18,  0.08it/s, v_num=24, loss/train=3.65e+6]Epoch 0:  58%|█████▊    | 7/12 [01:29<01:04,  0.08it/s, v_num=24, loss/train=3.65e+6]Epoch 0:  58%|█████▊    | 7/12 [01:29<01:04,  0.08it/s, v_num=24, loss/train=3.7e+6] Epoch 0:  67%|██████▋   | 8/12 [01:42<00:51,  0.08it/s, v_num=24, loss/train=3.7e+6]Epoch 0:  67%|██████▋   | 8/12 [01:42<00:51,  0.08it/s, v_num=24, loss/train=3.68e+6]Epoch 0:  75%|███████▌  | 9/12 [01:59<00:39,  0.08it/s, v_num=24, loss/train=3.68e+6]Epoch 0:  75%|███████▌  | 9/12 [01:59<00:39,  0.08it/s, v_num=24, loss/train=3.81e+6]Epoch 0:  83%|████████▎ | 10/12 [02:18<00:27,  0.07it/s, v_num=24, loss/train=3.81e+6]Epoch 0:  83%|████████▎ | 10/12 [02:18<00:27,  0.07it/s, v_num=24, loss/train=3.79e+6]Epoch 0:  92%|█████████▏| 11/12 [02:33<00:13,  0.07it/s, v_num=24, loss/train=3.79e+6]Epoch 0:  92%|█████████▏| 11/12 [02:33<00:13,  0.07it/s, v_num=24, loss/train=3.6e+6] Epoch 0: 100%|██████████| 12/12 [02:42<00:00,  0.07it/s, v_num=24, loss/train=3.6e+6]Epoch 0: 100%|██████████| 12/12 [02:42<00:00,  0.07it/s, v_num=24, loss/train=3.62e+6]
+Validation: |          | 0/? [00:00<?, ?it/s][A
+Validation:   0%|          | 0/4 [00:00<?, ?it/s][A
+Validation DataLoader 0:   0%|          | 0/4 [00:00<?, ?it/s][A
+Validation DataLoader 0:  25%|██▌       | 1/4 [00:06<00:19,  0.15it/s][A
+Validation DataLoader 0:  50%|█████     | 2/4 [00:12<00:12,  0.16it/s][A
+Validation DataLoader 0:  75%|███████▌  | 3/4 [00:19<00:06,  0.16it/s][A
+Validation DataLoader 0: 100%|██████████| 4/4 [00:24<00:00,  0.16it/s][A
+                                                                      [AEpoch 0: 100%|██████████| 12/12 [03:07<00:00,  0.06it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504]Epoch 0: 100%|██████████| 12/12 [03:07<00:00,  0.06it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 0:   0%|          | 0/12 [00:00<?, ?it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]         Epoch 1:   0%|          | 0/12 [00:00<?, ?it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:   8%|▊         | 1/12 [00:12<02:22,  0.08it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:   8%|▊         | 1/12 [00:12<02:22,  0.08it/s, v_num=24, loss/train=3.69e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  17%|█▋        | 2/12 [00:26<02:13,  0.08it/s, v_num=24, loss/train=3.69e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  17%|█▋        | 2/12 [00:26<02:13,  0.08it/s, v_num=24, loss/train=3.77e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  25%|██▌       | 3/12 [00:39<01:58,  0.08it/s, v_num=24, loss/train=3.77e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  25%|██▌       | 3/12 [00:39<01:58,  0.08it/s, v_num=24, loss/train=3.74e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  33%|███▎      | 4/12 [00:52<01:45,  0.08it/s, v_num=24, loss/train=3.74e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  33%|███▎      | 4/12 [00:52<01:45,  0.08it/s, v_num=24, loss/train=3.71e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  42%|████▏     | 5/12 [01:05<01:31,  0.08it/s, v_num=24, loss/train=3.71e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  42%|████▏     | 5/12 [01:05<01:31,  0.08it/s, v_num=24, loss/train=3.73e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  50%|█████     | 6/12 [01:18<01:18,  0.08it/s, v_num=24, loss/train=3.73e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  50%|█████     | 6/12 [01:18<01:18,  0.08it/s, v_num=24, loss/train=3.72e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  58%|█████▊    | 7/12 [01:29<01:04,  0.08it/s, v_num=24, loss/train=3.72e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  58%|█████▊    | 7/12 [01:29<01:04,  0.08it/s, v_num=24, loss/train=3.6e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482] Epoch 1:  67%|██████▋   | 8/12 [01:43<00:51,  0.08it/s, v_num=24, loss/train=3.6e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  67%|██████▋   | 8/12 [01:43<00:51,  0.08it/s, v_num=24, loss/train=3.78e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  75%|███████▌  | 9/12 [01:55<00:38,  0.08it/s, v_num=24, loss/train=3.78e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  75%|███████▌  | 9/12 [01:55<00:38,  0.08it/s, v_num=24, loss/train=3.59e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  83%|████████▎ | 10/12 [02:08<00:25,  0.08it/s, v_num=24, loss/train=3.59e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  83%|████████▎ | 10/12 [02:08<00:25,  0.08it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  92%|█████████▏| 11/12 [02:20<00:12,  0.08it/s, v_num=24, loss/train=3.62e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1:  92%|█████████▏| 11/12 [02:20<00:12,  0.08it/s, v_num=24, loss/train=3.45e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1: 100%|██████████| 12/12 [02:27<00:00,  0.08it/s, v_num=24, loss/train=3.45e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1: 100%|██████████| 12/12 [02:27<00:00,  0.08it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.69e+6, probs/mean_p0_val=0.484, gnn_cut/valid=0.000, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482] 
+Validation: |          | 0/? [00:00<?, ?it/s][A
+Validation:   0%|          | 0/4 [00:00<?, ?it/s][A
+Validation DataLoader 0:   0%|          | 0/4 [00:00<?, ?it/s][A
+Validation DataLoader 0:  25%|██▌       | 1/4 [00:06<00:19,  0.15it/s][A
+Validation DataLoader 0:  50%|█████     | 2/4 [00:12<00:12,  0.15it/s][A
+Validation DataLoader 0:  75%|███████▌  | 3/4 [00:18<00:06,  0.16it/s][A
+Validation DataLoader 0: 100%|██████████| 4/4 [00:24<00:00,  0.16it/s][A
+                                                                      [AEpoch 1: 100%|██████████| 12/12 [02:52<00:00,  0.07it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.482]Epoch 1: 100%|██████████| 12/12 [02:52<00:00,  0.07it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 1:   0%|          | 0/12 [00:00<?, ?it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]         Epoch 2:   0%|          | 0/12 [00:00<?, ?it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:   8%|▊         | 1/12 [00:12<02:18,  0.08it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:   8%|▊         | 1/12 [00:12<02:18,  0.08it/s, v_num=24, loss/train=3.63e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  17%|█▋        | 2/12 [00:25<02:06,  0.08it/s, v_num=24, loss/train=3.63e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  17%|█▋        | 2/12 [00:25<02:06,  0.08it/s, v_num=24, loss/train=3.46e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  25%|██▌       | 3/12 [00:37<01:52,  0.08it/s, v_num=24, loss/train=3.46e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  25%|██▌       | 3/12 [00:37<01:52,  0.08it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489] Epoch 2:  33%|███▎      | 4/12 [00:49<01:39,  0.08it/s, v_num=24, loss/train=3.5e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  33%|███▎      | 4/12 [00:49<01:39,  0.08it/s, v_num=24, loss/train=3.55e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  42%|████▏     | 5/12 [01:04<01:30,  0.08it/s, v_num=24, loss/train=3.55e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  42%|████▏     | 5/12 [01:04<01:30,  0.08it/s, v_num=24, loss/train=3.67e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  50%|█████     | 6/12 [01:18<01:18,  0.08it/s, v_num=24, loss/train=3.67e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]Epoch 2:  50%|█████     | 6/12 [01:18<01:18,  0.08it/s, v_num=24, loss/train=3.51e+6, loss/valid=3.61e+6, probs/mean_p0_val=0.476, gnn_cut/valid=0.460, spectral_cut/valid=0.128, greedy_cut/valid=0.504, probs/mean_p0_train=0.489]

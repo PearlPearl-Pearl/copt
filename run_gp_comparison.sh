@@ -58,49 +58,52 @@ echo "================================================================"
 echo " [4/4]  Final results summary"
 echo "================================================================"
 python3 - "$GCON_CSV" "$HYBRID_CSV" <<'EOF'
-import sys, math
+import sys
 import pandas as pd
 
 labels = ["gcon", "hybridconv"]
 
+def col_mean(df, col):
+    """Per-epoch mean of a column; returns Series or None if column absent."""
+    if col not in df.columns:
+        return None
+    return df[["epoch", col]].dropna(subset=[col]).groupby("epoch")[col].mean()
+
 for label, path in zip(labels, sys.argv[1:]):
     df = pd.read_csv(path)
 
-    val = (
-        df[["epoch", "loss/valid", "gnn_cut/valid", "spectral_cut/valid", "greedy_cut/valid"]]
-        .dropna(subset=["loss/valid"])
-        .groupby("epoch")
-        .mean()
-    )
-    test = (
-        df[["epoch", "gnn_cut/test", "spectral_cut/test", "greedy_cut/test"]]
-        .dropna(subset=["gnn_cut/test"])
-        .groupby("epoch")
-        .mean()
-    )
+    # ── best validation loss ──────────────────────────────────────────────────
+    val_loss = col_mean(df, "loss/valid")
+    best_epoch = int(val_loss.idxmin()) if val_loss is not None else -1
+    best_val   = val_loss.min() if val_loss is not None else float("nan")
 
-    best_epoch = int(val["gnn_cut/valid"].idxmin())
-    best_val   = val["gnn_cut/valid"].min()
-    spec_val   = val["spectral_cut/valid"].iloc[0]
-    greedy_val = val["greedy_cut/valid"].iloc[0]
+    # ── cut fractions ─────────────────────────────────────────────────────────
+    gnn_cut  = col_mean(df, "gnn_cut/valid")
+    spec_cut = col_mean(df, "spectral_cut/valid")
+    grd_cut  = col_mean(df, "greedy_cut/valid")
+
+    best_gnn  = gnn_cut.min()  if gnn_cut  is not None else float("nan")
+    spec_val  = spec_cut.mean() if spec_cut is not None else float("nan")
+    grd_val   = grd_cut.mean()  if grd_cut  is not None else float("nan")
 
     print(f"\n{'─'*52}")
-    print(f"  Architecture   : {label}")
+    print(f"  Architecture      : {label}")
     print(f"{'─'*52}")
-    print(f"  Best val GNN cut   : {best_val:.4f}  (epoch {best_epoch})")
-    print(f"  Spectral cut       : {spec_val:.4f}  (constant baseline)")
-    print(f"  Greedy cut         : {greedy_val:.4f}  (constant baseline)")
-    if not test.empty:
-        last = test.iloc[-1]
-        print(f"  Test GNN cut       : {last['gnn_cut/test']:.4f}")
-        if not math.isnan(last.get("spectral_cut/test", float("nan"))):
-            print(f"  Test Spectral cut  : {last['spectral_cut/test']:.4f}")
-        if not math.isnan(last.get("greedy_cut/test", float("nan"))):
-            print(f"  Test Greedy cut    : {last['greedy_cut/test']:.4f}")
+    print(f"  Best val loss     : {best_val:.4f}  (epoch {best_epoch})")
+    print(f"  Best GNN cut frac : {best_gnn:.4f}   (lower = better)")
+    print(f"  Spectral cut frac : {spec_val:.4f}   (constant baseline)")
+    print(f"  Greedy cut frac   : {grd_val:.4f}   (constant baseline)")
+    if best_gnn == best_gnn and spec_val == spec_val and spec_val > 0:
+        print(f"  GNN / Spectral    : {best_gnn/spec_val:.3f}   (<1 = GNN beats spectral)")
 
-    print(f"\n  Per-epoch val metrics (gnn_cut | spectral_cut | greedy_cut):")
-    print(val[["gnn_cut/valid", "spectral_cut/valid", "greedy_cut/valid"]].to_string(
-        float_format=lambda x: f"{x:.4f}"))
+    print(f"\n  Per-epoch (train loss | val loss | gnn_cut):")
+    train_loss = col_mean(df, "loss/train")
+    frames = {}
+    if train_loss is not None: frames["train_loss"] = train_loss
+    if val_loss   is not None: frames["val_loss"]   = val_loss
+    if gnn_cut    is not None: frames["gnn_cut"]    = gnn_cut
+    if frames:
+        print(pd.DataFrame(frames).to_string(float_format=lambda x: f"{x:.4f}"))
 
 print(f"\n{'═'*52}")
 print("  Done. Check gp_loss_curves.png for the plot.")
