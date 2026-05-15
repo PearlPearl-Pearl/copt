@@ -198,25 +198,25 @@ def maxbipartite_loss(output, adj, beta):
 
 
 ### GRAPH PARTITIONING ###
-@register_loss("gp_loss")
-def gp_loss_pyg(data, beta=100, gamma=100):
-    batch_size = data.batch.unique().size(0)
-    x = data.x.squeeze()  # probabilities in [0,1]
-    src, dst = data.edge_index[0], data.edge_index[1]
+# @register_loss("gp_loss")
+# def gp_loss_pyg(data, beta=100, gamma=100):
+#     batch_size = data.batch.unique().size(0)
+#     x = data.x.squeeze()  # probabilities in [0,1]
+#     src, dst = data.edge_index[0], data.edge_index[1]
 
-    # Term 1: minimize edges crossing the cut
-    loss1 = torch.sum((x[src] - x[dst]) ** 2)
+#     # Term 1: minimize edges crossing the cut
+#     loss1 = torch.sum((x[src] - x[dst]) ** 2)
 
-    # Term 2 & 3: soft balance constraint — keep partition sizes reasonable
-    n = x.size(0)
-    partition_sum = x.sum()
-    loss2 = torch.log(1 + torch.exp(1 - partition_sum))
-    loss3 = torch.log(1 + torch.exp(partition_sum - (n - 1)))
+#     # Term 2 & 3: soft balance constraint — keep partition sizes reasonable
+#     n = x.size(0)
+#     partition_sum = x.sum()
+#     loss2 = torch.log(1 + torch.exp(1 - partition_sum))
+#     loss3 = torch.log(1 + torch.exp(partition_sum - (n - 1)))
 
-    # Term 4: discreteness penalty — push x_i toward {0, 1}
-    loss4 = torch.sum(x * (1 - x))
+#     # Term 4: discreteness penalty — push x_i toward {0, 1}
+#     loss4 = torch.sum(x * (1 - x))
 
-    return (loss1 + beta * (loss2 + loss3) + gamma * loss4) / batch_size
+#     return (loss1 + beta * (loss2 + loss3) + gamma * loss4) / batch_size
 
 
 # @register_loss("gp_loss")
@@ -310,3 +310,29 @@ def gp_loss_pyg(data, beta=100, gamma=100):
 #     L_collapse = (torch.norm(cluster_frac, dim=1) * (2 ** 0.5) - 1).mean()
 
 #     return L_mod + L_collapse
+
+@register_loss("gp_loss")
+def gp_loss_pyg(batch, beta=1000):
+    data_list = batch.to_data_list()
+    loss = 0.0
+    for data in data_list:
+        src, dst = data.edge_index[0], data.edge_index[1]
+        
+        # term 1: push adjacent nodes to same partition
+        loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
+        
+        # term 2: penalize non-adjacent nodes in same partition
+        # compute all pairwise differences
+        diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, 1)
+        all_pairs = (diff ** 2).squeeze(-1)  # (n, n)
+        
+        # mask out diagonal and adjacent pairs
+        adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
+        adj_mask[src, dst] = True
+        adj_mask.fill_diagonal_(True)
+        
+        non_adj_pairs = (~adj_mask)
+        loss2 = torch.sum(1 - all_pairs[non_adj_pairs])
+        
+        loss += (loss1 + beta * loss2) * data.num_nodes
+    return loss / batch.size(0)

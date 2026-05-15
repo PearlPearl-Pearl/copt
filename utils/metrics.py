@@ -431,19 +431,20 @@ def _edge_index_to_adj(data):
 #     return torch.tensor(ncut_list, dtype=torch.float).mean()
 
 def gp_gnn_cut_pyg(batch, k=2):
-    """Mean number of edges crossing the GNN's partition boundary (lower = better)."""
+    """Mean cut fraction (cut edges / total edges) for the GNN's partition (lower = better)."""
     data_list = batch.to_data_list()
     cut_list = []
     for data in data_list:
         labels = gp_decoder(data).cpu().numpy()
         ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
-        cut = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2  # //2: undirected
-        cut_list.append(cut)
+        total_edges = ei.shape[1] // 2          # undirected: each edge appears twice
+        cut_edges   = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2
+        cut_list.append(cut_edges / total_edges if total_edges > 0 else 0.0)
     return torch.tensor(cut_list, dtype=torch.float).mean()
 
 
 def gp_spectral_cut_pyg(batch, k=2):
-    """Mean number of edges crossing the spectral partition boundary (lower = better)."""
+    """Mean cut fraction (cut edges / total edges) for the spectral baseline (lower = better)."""
     from utils.spectral import spectral_partition
     data_list = batch.to_data_list()
     cut_list = []
@@ -451,8 +452,61 @@ def gp_spectral_cut_pyg(batch, k=2):
         A = _edge_index_to_adj(data)
         labels = spectral_partition(A, k)
         ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
-        cut = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2
-        cut_list.append(cut)
+        total_edges = ei.shape[1] // 2
+        cut_edges   = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2
+        cut_list.append(cut_edges / total_edges if total_edges > 0 else 0.0)
+    return torch.tensor(cut_list, dtype=torch.float).mean()
+
+
+def _gp_greedy_labels(data):
+    """
+    Greedy balanced bisection: process nodes in descending degree order,
+    assign each node to whichever partition has more of its already-assigned
+    neighbours (tie-break: smaller partition), subject to the balance cap.
+    """
+    n = data.num_nodes
+    ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
+
+    neighbors = [[] for _ in range(n)]
+    for src, dst in zip(ei[0], ei[1]):
+        neighbors[src].append(dst)
+
+    degrees = np.array([len(neighbors[v]) for v in range(n)])
+    order = np.argsort(-degrees)   # high-degree first
+
+    labels = -np.ones(n, dtype=int)
+    count = [0, 0]
+    half = (n + 1) // 2           # ceil(n/2) cap per partition
+
+    for v in order:
+        edges_to = [0, 0]
+        for u in neighbors[v]:
+            if labels[u] >= 0:
+                edges_to[labels[u]] += 1
+
+        if count[0] >= half:
+            p = 1
+        elif count[1] >= half:
+            p = 0
+        else:
+            # more neighbours already in p → assign to p (reduces cut)
+            p = int(edges_to[1] > edges_to[0])
+        labels[v] = p
+        count[p] += 1
+
+    return labels
+
+
+def gp_greedy_cut_pyg(batch, k=2):
+    """Mean cut fraction for the greedy balanced bisection heuristic (lower = better)."""
+    data_list = batch.to_data_list()
+    cut_list = []
+    for data in data_list:
+        labels = _gp_greedy_labels(data)
+        ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
+        total_edges = ei.shape[1] // 2
+        cut_edges   = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2
+        cut_list.append(cut_edges / total_edges if total_edges > 0 else 0.0)
     return torch.tensor(cut_list, dtype=torch.float).mean()
 
 
