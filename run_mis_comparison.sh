@@ -21,12 +21,10 @@ if command -v conda &>/dev/null; then
     conda activate "$CONDA_ENV"
 fi
 
-# ── helper: latest metrics.csv under a lightning_logs dir ────────────────────
+# ── helper: most recently modified metrics.csv anywhere under a results dir ───
 latest_csv() {
-    local logs_dir="$1"
-    local latest_ver
-    latest_ver=$(ls "$logs_dir" | grep "^version_" | sort -V | tail -1)
-    echo "$logs_dir/$latest_ver/metrics.csv"
+    find "$1" -name "metrics.csv" -printf "%T@ %p\n" 2>/dev/null \
+        | sort -n | tail -1 | awk '{print $2}'
 }
 
 # ── run gcon ──────────────────────────────────────────────────────────────────
