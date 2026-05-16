@@ -1,6 +1,7 @@
 ---
 out_dir: results
-metric_best: gnn_cut
+metric_best: loss
+# metric_best: gnn_cut
 metric_agg: argmin        # cut size is lower-is-better
 num_workers: 4
 # dim_out: 1
@@ -59,7 +60,8 @@ train:
   task: gp                # must match key in EVAL_FUNCTION_DICT
   batch_size: 256
   val_period: 1
-  ckpt_period: 100
+  ckpt_period: 1
+  # ckpt_period: 100
   ckpt_best: true
   log_probs: true         # log mean/std of GNN output probabilities each step
 
