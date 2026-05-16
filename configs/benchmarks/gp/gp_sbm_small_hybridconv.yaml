@@ -3,7 +3,8 @@ out_dir: results
 metric_best: gnn_cut
 metric_agg: argmin        # cut size is lower-is-better
 num_workers: 4
-dim_out: 1
+# dim_out: 1
+dim_out: 2
 wandb:
   use: False
   name: gp_sbm_small_hybridconv
@@ -78,7 +79,8 @@ gnn:
   stage_type: skipsum
   batchnorm: true
   act: elu
-  last_act: sigmoid       # p in [0,1]; loss uses y = 2p - 1
+  last_act: softmax       # p in [0,1]; loss uses y = 2p - 1
+  # last_act: sigmoid       # p in [0,1]; loss uses y = 2p - 1
   dropout: 0.3
   agg: mean
   normalize_adj: false

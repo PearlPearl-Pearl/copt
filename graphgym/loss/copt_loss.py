@@ -311,28 +311,56 @@ def maxbipartite_loss(output, adj, beta):
 
 #     return L_mod + L_collapse
 
+# @register_loss("gp_loss")
+# def gp_loss_pyg(batch, beta=1000):
+#     data_list = batch.to_data_list()
+#     loss = 0.0
+#     for data in data_list:
+#         src, dst = data.edge_index[0], data.edge_index[1]
+#
+#         # term 1: push adjacent nodes to same partition
+#         loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
+#
+#         # term 2: penalize non-adjacent nodes in same partition
+#         # compute all pairwise differences
+#         diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, 1)
+#         all_pairs = (diff ** 2).squeeze(-1)  # (n, n)
+#
+#         # mask out diagonal and adjacent pairs
+#         adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
+#         adj_mask[src, dst] = True
+#         adj_mask.fill_diagonal_(True)
+#
+#         non_adj_pairs = (~adj_mask)
+#         loss2 = torch.sum(1 - all_pairs[non_adj_pairs])
+#
+#         loss += (loss1 + beta * loss2) * data.num_nodes
+#     return loss / batch.size(0)
+
+
 @register_loss("gp_loss")
 def gp_loss_pyg(batch, beta=1000):
     data_list = batch.to_data_list()
     loss = 0.0
     for data in data_list:
         src, dst = data.edge_index[0], data.edge_index[1]
-        
+
         # term 1: push adjacent nodes to same partition
+        # data.x is (n, k); squared L2 norm of differences, summed over edges
         loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
-        
+
         # term 2: penalize non-adjacent nodes in same partition
-        # compute all pairwise differences
-        diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, 1)
-        all_pairs = (diff ** 2).squeeze(-1)  # (n, n)
-        
+        # compute all pairwise squared L2 distances
+        diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, k)
+        all_pairs = (diff ** 2).sum(dim=-1)  # (n, n) — squared L2 norm per pair
+
         # mask out diagonal and adjacent pairs
         adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
         adj_mask[src, dst] = True
         adj_mask.fill_diagonal_(True)
-        
+
         non_adj_pairs = (~adj_mask)
-        loss2 = torch.sum(1 - all_pairs[non_adj_pairs])
-        
+        loss2 = torch.sum(1 - 0.5 * all_pairs[non_adj_pairs])
+
         loss += (loss1 + beta * loss2) * data.num_nodes
     return loss / batch.size(0)
