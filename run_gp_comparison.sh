@@ -10,7 +10,7 @@ set -e
 CONDA_ENV="main_paper_env"
 CFG_GCON="configs/benchmarks/gp/gp_sbm_small.yaml"
 CFG_HYBRID="configs/benchmarks/gp/gp_sbm_small_hybridconv.yaml"
-EPOCHS=100
+EPOCHS=10
 LOG_GCON="gp_gcon.log"
 LOG_HYBRID="gp_hybridconv.log"
 PLOT_OUT="gp_loss_curves.png"
