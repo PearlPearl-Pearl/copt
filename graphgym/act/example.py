@@ -37,6 +37,15 @@ class Sigmoid(nn.Module):
         return batch
 
 
+class Softmax(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, batch):
+        batch.x = torch.softmax(batch.x, dim=-1)
+        return batch
+
+
 def minmax_norm_pyg(data):
     x_list = unbatch(data.x, data.batch)
 
@@ -60,6 +69,7 @@ register_act('linear', LinearAct)
 # Add Gaussian Error Linear Unit (GELU).
 register_act('gelu', nn.GELU)
 register_act('sigmoid', Sigmoid)
+register_act('softmax', Softmax)
 
 
 #register_norm('minmax', minmax_norm_pyg)
