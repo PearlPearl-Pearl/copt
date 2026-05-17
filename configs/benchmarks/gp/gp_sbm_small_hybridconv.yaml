@@ -100,6 +100,9 @@ optim:
     base_temp: 1.0
     min_temp: 0.001
 
+gp_loss:
+  balance: 1.0    # weight on balance constraint; increase if still collapsing
+
 # Evaluation hyperparameters
 metrics:
   gp:

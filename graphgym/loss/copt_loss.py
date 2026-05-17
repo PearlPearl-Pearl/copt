@@ -338,29 +338,48 @@ def maxbipartite_loss(output, adj, beta):
 #     return loss / batch.size(0)
 
 
+# @register_loss("gp_loss")
+# def gp_loss_pyg(batch, beta=1000):
+#     — O(n²) all-pairs version: has zero gradient at the all-same-partition
+#       degenerate critical point, causing collapse. Replaced below.
+#     data_list = batch.to_data_list()
+#     loss = 0.0
+#     for data in data_list:
+#         src, dst = data.edge_index[0], data.edge_index[1]
+#         loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
+#         diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, k)
+#         all_pairs = (diff ** 2).sum(dim=-1)
+#         adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
+#         adj_mask[src, dst] = True
+#         adj_mask.fill_diagonal_(True)
+#         non_adj_pairs = (~adj_mask)
+#         loss2 = torch.sum(1 - 0.5 * all_pairs[non_adj_pairs])
+#         loss += (loss1 + beta * loss2) * data.num_nodes
+#     return loss / batch.size(0)
+
+
 @register_loss("gp_loss")
-def gp_loss_pyg(batch, beta=1000):
-    data_list = batch.to_data_list()
-    loss = 0.0
-    for data in data_list:
-        src, dst = data.edge_index[0], data.edge_index[1]
+def gp_loss_pyg(batch, balance=1.0):
+    """
+    Laplacian cut + balance constraint for k-way graph partitioning.
 
-        # term 1: push adjacent nodes to same partition
-        # data.x is (n, k); squared L2 norm of differences, summed over edges
-        loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
+    S ∈ R^{N×k} is the softmax output (rows sum to 1).
 
-        # term 2: penalize non-adjacent nodes in same partition
-        # compute all pairwise squared L2 distances
-        diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, k)
-        all_pairs = (diff ** 2).sum(dim=-1)  # (n, n) — squared L2 norm per pair
+    loss_cut     = Σ_{(i,j)∈E} ||s_i - s_j||²   (O(|E|), minimised by same-partition edges)
+    loss_balance = ||mean_g(S) - 1/k||²  per graph (prevents all-same-partition collapse)
+    """
+    from torch_scatter import scatter
 
-        # mask out diagonal and adjacent pairs
-        adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
-        adj_mask[src, dst] = True
-        adj_mask.fill_diagonal_(True)
+    batch_size = batch.batch.unique().size(0)
+    S = batch.x                              # (N, k)
+    k = S.shape[1]
+    src, dst = batch.edge_index[0], batch.edge_index[1]
 
-        non_adj_pairs = (~adj_mask)
-        loss2 = torch.sum(1 - 0.5 * all_pairs[non_adj_pairs])
+    # Laplacian cut: O(|E|), zero when adjacent nodes share a partition
+    loss_cut = ((S[src] - S[dst]) ** 2).sum()
 
-        loss += (loss1 + beta * loss2) * data.num_nodes
-    return loss / batch.size(0)
+    # Balance: per-graph mean of each soft assignment should be 1/k
+    S_mean = scatter(S, batch.batch, dim=0, reduce='mean')   # (B, k)
+    loss_balance = ((S_mean - 1.0 / k) ** 2).sum()
+
+    return (loss_cut + balance * loss_balance) / batch_size
