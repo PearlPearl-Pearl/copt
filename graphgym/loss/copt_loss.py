@@ -339,7 +339,7 @@ def maxbipartite_loss(output, adj, beta):
 
 
 @register_loss("gp_loss")
-def gp_loss_pyg(batch, beta=1000):
+def gp_loss_pyg(batch, beta=1000, **kwargs):
     data_list = batch.to_data_list()
     loss = 0.0
     for data in data_list:
