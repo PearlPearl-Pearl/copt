@@ -413,7 +413,9 @@ def greedy_mis_size(batch, **_):
 
 def gp_decoder(data):
     # For k-way softmax output (n, k): take argmax to get hard cluster labels
-    return data.x.argmax(dim=-1).long()
+    labels = data.x.argmax(dim=-1).long()
+    print(labels)
+    return labels
 
 def _edge_index_to_adj(data):
     n = data.num_nodes
