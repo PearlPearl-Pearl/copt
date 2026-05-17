@@ -42,6 +42,7 @@ class Softmax(nn.Module):
         super().__init__()
 
     def forward(self, batch):
+        batch.logits = batch.x.detach().clone()   # raw logits in R, saved for logging
         batch.x = torch.softmax(batch.x, dim=-1)
         return batch
 

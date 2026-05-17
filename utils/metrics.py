@@ -411,11 +411,12 @@ def greedy_mis_size(batch, **_):
 #     y = 2 * data.x.squeeze() - 1
 #     return (y >= 0).long()
 
-def gp_decoder(data):
-    # For k-way softmax output (n, k): take argmax to get hard cluster labels
-    labels = data.x.argmax(dim=-1).long()
-    print(labels)
-    return labels
+def gp_decoder(data, k=2, eps=1e-8):
+    from sklearn.cluster import KMeans
+    x = data.x                                                          # (n, d)
+    x_norm = (x / (torch.linalg.norm(x, dim=-1, keepdim=True) + eps)).detach().cpu().numpy()
+    labels = KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(x_norm)
+    return torch.tensor(labels, dtype=torch.long, device=data.x.device)
 
 def _edge_index_to_adj(data):
     n = data.num_nodes
@@ -464,11 +465,11 @@ def gp_spectral_cut_pyg(batch, k=2):
     return torch.tensor(cut_list, dtype=torch.float).mean()
 
 
-def _gp_greedy_labels(data):
+def _gp_greedy_labels(data, k=2):
     """
-    Greedy balanced bisection: process nodes in descending degree order,
-    assign each node to whichever partition has more of its already-assigned
-    neighbours (tie-break: smaller partition), subject to the balance cap.
+    Greedy balanced k-partition: process nodes in descending degree order,
+    assign each node to the non-full partition that has the most already-assigned
+    neighbours (minimises cut edges).
     """
     n = data.num_nodes
     ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
@@ -481,22 +482,18 @@ def _gp_greedy_labels(data):
     order = np.argsort(-degrees)   # high-degree first
 
     labels = -np.ones(n, dtype=int)
-    count = [0, 0]
-    half = (n + 1) // 2           # ceil(n/2) cap per partition
+    count = [0] * k
+    cap = (n + k - 1) // k        # ceil(n/k) cap per partition
 
     for v in order:
-        edges_to = [0, 0]
+        edges_to = [0] * k
         for u in neighbors[v]:
             if labels[u] >= 0:
                 edges_to[labels[u]] += 1
 
-        if count[0] >= half:
-            p = 1
-        elif count[1] >= half:
-            p = 0
-        else:
-            # more neighbours already in p → assign to p (reduces cut)
-            p = int(edges_to[1] > edges_to[0])
+        # pick the non-full partition with the most neighbours already assigned
+        available = [p for p in range(k) if count[p] < cap]
+        p = max(available, key=lambda p: edges_to[p])
         labels[v] = p
         count[p] += 1
 
@@ -504,11 +501,11 @@ def _gp_greedy_labels(data):
 
 
 def gp_greedy_cut_pyg(batch, k=2):
-    """Mean cut fraction for the greedy balanced bisection heuristic (lower = better)."""
+    """Mean cut fraction for the greedy balanced k-partition heuristic (lower = better)."""
     data_list = batch.to_data_list()
     cut_list = []
     for data in data_list:
-        labels = _gp_greedy_labels(data)
+        labels = _gp_greedy_labels(data, k=k)
         ei = remove_self_loops(data.edge_index)[0].cpu().numpy()
         total_edges = ei.shape[1] // 2
         cut_edges   = int((labels[ei[0]] != labels[ei[1]]).sum()) // 2

@@ -33,7 +33,8 @@ def loss_param_cfg(cfg):
     cfg.metrics.maxclique.num_seeds = 1
 
     cfg.gp_loss = CN()
-    cfg.gp_loss.balance = 1.0     # weight for balance constraint (prevents collapse)
+    cfg.gp_loss.alpha = 1.0    # edge term weight  — (1 - x_i·x_j)^2 on edges
+    cfg.gp_loss.beta  = 1.0    # non-edge term weight — (x_i·x_j)^2 on non-edges
 
     cfg.metrics.gp = CN()
     cfg.metrics.gp.k = 2

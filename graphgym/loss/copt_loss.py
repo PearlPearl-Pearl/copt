@@ -338,29 +338,147 @@ def maxbipartite_loss(output, adj, beta):
 #     return loss / batch.size(0)
 
 
+# @register_loss("gp_loss")
+# def gp_loss_pyg(batch, beta=1000, **kwargs):
+#     data_list = batch.to_data_list()
+#     loss = 0.0
+#     for data in data_list:
+#         src, dst = data.edge_index[0], data.edge_index[1]
+
+#         # term 1: push adjacent nodes to same partition
+#         # data.x is (n, k); squared L2 norm of differences, summed over edges
+#         loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
+
+#         # term 2: penalize non-adjacent nodes in same partition
+#         # compute all pairwise squared L2 distances
+#         diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, k)
+#         all_pairs = (diff ** 2).sum(dim=-1)  # (n, n) — squared L2 norm per pair
+
+#         # mask out diagonal and adjacent pairs
+#         adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
+#         adj_mask[src, dst] = True
+#         adj_mask.fill_diagonal_(True)
+
+#         non_adj_pairs = (~adj_mask)
+#         loss2 = torch.sum(1 - 0.5 * all_pairs[non_adj_pairs])
+
+#         loss += (loss1 + beta * loss2) * data.num_nodes
+#     return loss / batch.size(0)
+
+# @register_loss("gp_loss")
+# def gp_loss_pyg(batch, beta1=10.0, beta2=1.0, **kwargs):
+#     data_list = batch.to_data_list()
+#     loss = 0.0
+#     for data in data_list:
+#         src, dst = data.edge_index[0], data.edge_index[1]
+        
+#         # term 1: 1/2 * sum_{(i,j) in E} ||s_i - s_j||^2
+#         loss1 = 0.5 * torch.sum((data.x[src] - data.x[dst]) ** 2)
+        
+#         # term 2: sum_{i != j, (i,j) not in E} <s_i, s_j>
+#         all_inner = data.x @ data.x.T  # (n, n) — <s_i, s_j>
+#         adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool, device=data.x.device)
+#         adj_mask[src, dst] = True
+#         adj_mask.fill_diagonal_(True)
+#         non_adj_pairs = (~adj_mask)
+#         loss2 = torch.sum(all_inner[non_adj_pairs])
+        
+#         # term 3: discreteness penalty — push ||s_i|| toward 1 (i.e., toward one-hot)
+#         norms = torch.linalg.norm(data.x, dim=-1)  # (n,)
+#         loss3 = torch.sum((1 - norms) ** 2)
+        
+#         loss += (loss1 + beta1 * loss2 + beta2 * loss3) * data.num_nodes
+#     return loss / batch.size(0)
+
 @register_loss("gp_loss")
-def gp_loss_pyg(batch, beta=1000, **kwargs):
+def gp_loss_pyg(
+    batch,
+    alpha=1.0, # edge coefficient
+    beta=1.0, # non-edge coefficient
+    eps=1e-8,
+    **kwargs
+):
+    """
+    Loss:
+
+        L =
+        beta * sum_{i != j, (i,j) not in E} (x_i · x_j)^2
+        +
+        alpha * sum_{(i,j) in E} (1 - x_i · x_j)^2
+
+    where x_i are node embeddings.
+    """
+
     data_list = batch.to_data_list()
-    loss = 0.0
+    total_loss = 0.0
+
     for data in data_list:
-        src, dst = data.edge_index[0], data.edge_index[1]
 
-        # term 1: push adjacent nodes to same partition
-        # data.x is (n, k); squared L2 norm of differences, summed over edges
-        loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
+        x = data.x
+        device = x.device
+        n = data.num_nodes
 
-        # term 2: penalize non-adjacent nodes in same partition
-        # compute all pairwise squared L2 distances
-        diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, k)
-        all_pairs = (diff ** 2).sum(dim=-1)  # (n, n) — squared L2 norm per pair
+        src = data.edge_index[0]
+        dst = data.edge_index[1]
 
-        # mask out diagonal and adjacent pairs
-        adj_mask = torch.zeros(data.num_nodes, data.num_nodes, dtype=torch.bool)
+        # ---------------------------------------
+        # Optional normalization
+        # ---------------------------------------
+        x = x / (
+            torch.linalg.norm(x, dim=-1, keepdim=True) + eps
+        )
+
+        # ---------------------------------------
+        # Compute all dot products
+        # ---------------------------------------
+        dot_matrix = x @ x.T
+
+        # ---------------------------------------
+        # Edge term:
+        #
+        # sum_{(i,j) in E} (1 - x_i · x_j)^2
+        # ---------------------------------------
+        edge_dot = dot_matrix[src, dst]
+
+        loss_edge = torch.sum(
+            (1.0 - edge_dot) ** 2
+        )
+
+        # ---------------------------------------
+        # Build adjacency mask
+        # ---------------------------------------
+        adj_mask = torch.zeros(
+            (n, n),
+            dtype=torch.bool,
+            device=device
+        )
+
         adj_mask[src, dst] = True
+
+        # remove self-pairs
         adj_mask.fill_diagonal_(True)
 
-        non_adj_pairs = (~adj_mask)
-        loss2 = torch.sum(1 - 0.5 * all_pairs[non_adj_pairs])
+        # ---------------------------------------
+        # Non-edge term:
+        #
+        # sum_{i != j, (i,j) not in E} (x_i · x_j)^2
+        # ---------------------------------------
+        non_edge_mask = ~adj_mask
 
-        loss += (loss1 + beta * loss2) * data.num_nodes
-    return loss / batch.size(0)
+        non_edge_dot = dot_matrix[non_edge_mask]
+
+        loss_nonedge = torch.sum(
+            non_edge_dot ** 2
+        )
+
+        # ---------------------------------------
+        # Final loss
+        # ---------------------------------------
+        loss = (
+            alpha * loss_edge
+            + beta * loss_nonedge
+        )
+
+        total_loss += loss
+
+    return total_loss / batch.size(0)

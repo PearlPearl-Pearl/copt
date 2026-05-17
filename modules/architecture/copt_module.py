@@ -51,22 +51,13 @@ class COPTModule(GraphGymModule):
         return [optimizer], [scheduler]
 
     def _log_probs(self, batch, split):
-        x = batch.x.detach()           # (N,) or (N, k)
-        if x.dim() == 1:
-            # scalar output: single probability per node
-            self.log(f"probs/mean_{split}", x.mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log(f"probs/std_{split}", x.std(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            if cfg.wandb.use:
-                import wandb
-                wandb.log({f"probs/hist_{split}": wandb.Histogram(x.cpu().numpy())}, commit=False)
-        else:
-            # k-way output: log mean probability per partition
-            for i in range(x.shape[1]):
-                self.log(f"probs/mean_p{i}_{split}", x[:, i].mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            if cfg.wandb.use:
-                import wandb
-                for i in range(x.shape[1]):
-                    wandb.log({f"probs/hist_p{i}_{split}": wandb.Histogram(x[:, i].cpu().numpy())}, commit=False)
+        # Use raw logits if available (set by Softmax activation), else fall back to batch.x
+        z = getattr(batch, 'logits', None)
+        x = (z if z is not None else batch.x).detach()   # (N, k) logits or probs
+        for i in range(x.shape[-1] if x.dim() > 1 else 1):
+            col = x[:, i] if x.dim() > 1 else x
+            self.log(f"logits/mean_z{i}_{split}", col.mean(), batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=False, logger=True)
+            self.log(f"logits/std_z{i}_{split}",  col.std(),  batch_size=batch.batch_size, on_step=False, on_epoch=True, prog_bar=False, logger=True)
 
     def training_step(self, batch, *args, **kwargs):
         batch.split = "train"
@@ -118,57 +109,57 @@ class COPTModule(GraphGymModule):
             eval_dict.update({eval_type: eval})
             self.log("".join([eval_type, "/test"]), eval, batch_size=batch.batch_size, on_epoch=True, prog_bar=True, logger=True)
         if cfg.train.log_probs:
-            self._test_probs.append(batch.x.detach().cpu().squeeze())
+            z = getattr(batch, 'logits', None)
+            src = z if z is not None else batch.x
+            self._test_probs.append(src.detach().cpu())
         return eval_dict
 
     def on_test_epoch_end(self):
         if not cfg.train.log_probs or not self._test_probs:
             return
         import os
-        probs = torch.cat(self._test_probs)           # (total_nodes,) or (total_nodes, k)
+        logits = torch.cat(self._test_probs)           # (total_nodes, k) raw logits in R
         out_path = os.path.join(cfg.run_dir, "probs_test.pt")
-        torch.save(probs, out_path)
-        print(f"\n--- GNN output probabilities (test set) ---")
-        print(f"  shape : {tuple(probs.shape)}")
-        print(f"  min   : {probs.min():.4f}")
-        print(f"  max   : {probs.max():.4f}")
-        print(f"  mean  : {probs.mean():.4f}")
-        print(f"  std   : {probs.std():.4f}")
-        # Partition assignment counts and node sets
-        total = probs.shape[0]
-        _MAX_SHOW = 30  # truncate long node lists
+        torch.save(logits, out_path)
+
+        print(f"\n--- GNN raw logits (test set) ---")
+        print(f"  shape : {tuple(logits.shape)}")
+        k = logits.shape[1] if logits.dim() > 1 else 1
+        for i in range(k):
+            col = logits[:, i] if logits.dim() > 1 else logits
+            print(f"  z{i}  min={col.min():.4f}  max={col.max():.4f}  "
+                  f"mean={col.mean():.4f}  std={col.std():.4f}")
+
+        # Partition assignments via argmax over logits
+        total = logits.shape[0]
+        _MAX_SHOW = 30
         def _fmt_set(indices):
             idx = indices.tolist()
             if len(idx) <= _MAX_SHOW:
                 return "{" + ", ".join(map(str, idx)) + "}"
             return "{" + ", ".join(map(str, idx[:_MAX_SHOW])) + f", ... +{len(idx)-_MAX_SHOW} more}}"
 
-        if probs.dim() == 1:
-            # scalar output: y = 2p - 1, threshold at 0 (equiv. p < 0.5)
-            idx0 = torch.where(probs < 0.5)[0]
-            idx1 = torch.where(probs >= 0.5)[0]
-            n0, n1 = len(idx0), len(idx1)
-            print(f"  partition 0 : {n0:6d} nodes  ({100*n0/total:.1f}%)")
-            print(f"  S1 = {_fmt_set(idx0)}")
-            print(f"  partition 1 : {n1:6d} nodes  ({100*n1/total:.1f}%)")
-            print(f"  S2 = {_fmt_set(idx1)}")
-        else:
-            # k-way output: argmax over columns
-            assignments = probs.argmax(dim=1)
-            for part in range(probs.shape[1]):
-                idx = torch.where(assignments == part)[0]
-                n = len(idx)
-                print(f"  partition {part} : {n:6d} nodes  ({100*n/total:.1f}%)")
-                print(f"  S{part+1} = {_fmt_set(idx)}")
-        # Text histogram: 10 buckets across [0, 1]
-        flat = probs.flatten() if probs.dim() > 1 else probs
-        counts = torch.histc(flat, bins=10, min=0.0, max=1.0)
-        label = "(all partitions flattened)" if probs.dim() > 1 else ""
-        print(f"  histogram (0→1) {label}:")
+        assignments = logits.argmax(dim=-1) if logits.dim() > 1 else (logits >= 0).long()
+        for part in range(k):
+            idx = torch.where(assignments == part)[0]
+            n = len(idx)
+            print(f"  partition {part} : {n:6d} nodes  ({100*n/total:.1f}%)")
+            print(f"  S{part+1} = {_fmt_set(idx)}")
+
+        # Per-column histogram over the actual logit range
+        flat = logits.flatten() if logits.dim() > 1 else logits
+        lo_val, hi_val = flat.min().item(), flat.max().item()
+        if lo_val == hi_val:
+            hi_val = lo_val + 1.0
+        counts = torch.histc(flat.float(), bins=10, min=lo_val, max=hi_val)
+        step = (hi_val - lo_val) / 10
+        label = "(all columns flattened)" if logits.dim() > 1 else ""
+        print(f"  histogram {label}:")
+        max_c = counts.max().item() or 1
         for i, c in enumerate(counts):
-            lo, hi = i * 0.1, (i + 1) * 0.1
-            bar = "█" * int(c.item() * 40 / counts.max().item())
-            print(f"    [{lo:.1f}-{hi:.1f}]  {bar} {int(c.item())}")
+            lo, hi = lo_val + i * step, lo_val + (i + 1) * step
+            bar = "█" * int(c.item() * 40 / max_c)
+            print(f"    [{lo:+.2f} → {hi:+.2f}]  {bar} {int(c.item())}")
         print(f"  saved to: {out_path}")
 
     @property

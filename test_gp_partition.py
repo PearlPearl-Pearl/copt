@@ -38,7 +38,7 @@ from modules.architecture.copt_module import create_model
 
 from utils.spectral import spectral_partition
 
-COLORS = ["#4878CF", "#D65F5F"]   # blue = P0,  red = P1
+COLORS = ["#4878CF", "#D65F5F", "#6ACC65", "#B47CC7", "#C4AD66"]  # up to 5 partitions
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -47,11 +47,17 @@ COLORS = ["#4878CF", "#D65F5F"]   # blue = P0,  red = P1
 #     """y = 2p − 1;  y < 0 → partition 0,  y ≥ 0 → partition 1."""
 #     return ((2 * probs - 1) >= 0).astype(int)
 
-def decode_gnn(probs: np.ndarray) -> np.ndarray:
-    """argmax over k columns → hard partition label per node."""
-    if probs.ndim == 1:
-        return (probs >= 0.5).astype(int)   # legacy scalar sigmoid
-    return probs.argmax(axis=-1).astype(int)
+def decode_gnn(emb: np.ndarray, k: int = 2) -> np.ndarray:
+    """K-means on unit-sphere-normalised embeddings.
+    The partition directions emerge from training so we cluster rather than
+    project onto fixed prototypes.
+    """
+    from sklearn.cluster import KMeans
+    if emb.ndim == 1:
+        return (emb >= 0.5).astype(int)          # legacy scalar sigmoid fallback
+    norm = np.linalg.norm(emb, axis=-1, keepdims=True) + 1e-8
+    x_norm = emb / norm
+    return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(x_norm).astype(int)
 
 
 def cut_fraction(edge_index, labels) -> float:
@@ -88,7 +94,7 @@ def draw_partition(ax, G, pos, probs, labels, title, cf):
     def _prob_str(p):
         if np.ndim(p) == 0:
             return f"p={p:.3f}"
-        return f"p1={p[1]:.3f}"   # softmax score for partition 1
+        return ",".join(f"{v:.2f}" for v in p)
 
     nx.draw_networkx_labels(G, pos,
                             labels={i: f"{i}\n{_prob_str(probs[i])}" for i in G.nodes()},
@@ -101,12 +107,10 @@ def draw_partition(ax, G, pos, probs, labels, title, cf):
     ax.set_title(f"{title}\ncut fraction = {cf:.4f}  ({len(cut_e)} cut edges)",
                  fontsize=11, pad=8)
     ax.axis("off")
-    ax.legend(handles=[
-        mpatches.Patch(facecolor=COLORS[0], label="Partition 0"),
-        mpatches.Patch(facecolor=COLORS[1], label="Partition 1"),
-        mlines.Line2D([], [], color="crimson", lw=2, linestyle="dashed",
-                      label=f"Cut ({len(cut_e)})"),
-    ], loc="lower left", fontsize=8, framealpha=0.85)
+    k_parts = len(set(labels))
+    legend_handles = [mpatches.Patch(facecolor=COLORS[i], label=f"Partition {i}") for i in range(k_parts)]
+    legend_handles.append(mlines.Line2D([], [], color="crimson", lw=2, linestyle="dashed", label=f"Cut ({len(cut_e)})"))
+    ax.legend(handles=legend_handles, loc="lower left", fontsize=8, framealpha=0.85)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -184,7 +188,8 @@ def main():
           f"mean={gnn_probs.mean():.4f}")
 
     # ── decode GNN partition ──────────────────────────────────────────────────
-    gnn_labels = decode_gnn(gnn_probs)
+    k               = cfg.metrics.gp.k
+    gnn_labels = decode_gnn(gnn_probs, k=k)
     gnn_cf     = cut_fraction(data.edge_index, gnn_labels)
     p0, p1     = (gnn_labels == 0).sum(), (gnn_labels == 1).sum()
     print(f"GNN partition : P0={p0} nodes  P1={p1} nodes  "
@@ -192,7 +197,6 @@ def main():
 
     # ── spectral baseline ─────────────────────────────────────────────────────
     A               = adj_numpy(data)
-    k               = cfg.metrics.gp.k
     spectral_labels = spectral_partition(A, k)
     spectral_probs  = np.where(spectral_labels == 0, 0.05, 0.95).astype(float)
     spectral_cf     = cut_fraction(data.edge_index, spectral_labels)

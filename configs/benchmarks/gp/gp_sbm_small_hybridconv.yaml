@@ -5,7 +5,8 @@ metric_best: loss
 metric_agg: argmin        # cut size is lower-is-better
 num_workers: 4
 # dim_out: 1
-dim_out: 2
+# dim_out: 2
+dim_out: 3
 wandb:
   use: False
   name: gp_sbm_small_hybridconv
@@ -81,8 +82,9 @@ gnn:
   stage_type: skipsum
   batchnorm: true
   act: elu
-  last_act: softmax       # p in [0,1]; loss uses y = 2p - 1
-  # last_act: sigmoid       # p in [0,1]; loss uses y = 2p - 1
+  # last_act: softmax       # k-way softmax (old)
+  # last_act: sigmoid       # scalar sigmoid (old)
+  last_act: null            # raw embeddings in R^d — loss normalises internally
   dropout: 0.3
   agg: mean
   normalize_adj: false
@@ -101,9 +103,15 @@ optim:
     min_temp: 0.001
 
 gp_loss:
-  balance: 1.0    # weight on balance constraint; increase if still collapsing
+  alpha: 1.0   # edge term   — (1 - x_i·x_j)^2 on edges
+  beta:  100.0   # non-edge term — (x_i·x_j)^2 on non-edges
+
+sbm:
+  small:
+    k: 3    # number of communities in SBM data generation (was 2)
 
 # Evaluation hyperparameters
 metrics:
   gp:
-    k: 2
+    # k: 2
+    k: 3
