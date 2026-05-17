@@ -43,9 +43,15 @@ COLORS = ["#4878CF", "#D65F5F"]   # blue = P0,  red = P1
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+# def decode_gnn(probs: np.ndarray) -> np.ndarray:
+#     """y = 2p − 1;  y < 0 → partition 0,  y ≥ 0 → partition 1."""
+#     return ((2 * probs - 1) >= 0).astype(int)
+
 def decode_gnn(probs: np.ndarray) -> np.ndarray:
-    """y = 2p − 1;  y < 0 → partition 0,  y ≥ 0 → partition 1."""
-    return ((2 * probs - 1) >= 0).astype(int)
+    """argmax over k columns → hard partition label per node."""
+    if probs.ndim == 1:
+        return (probs >= 0.5).astype(int)   # legacy scalar sigmoid
+    return probs.argmax(axis=-1).astype(int)
 
 
 def cut_fraction(edge_index, labels) -> float:
@@ -79,8 +85,13 @@ def draw_partition(ax, G, pos, probs, labels, title, cf):
     nx.draw_networkx_nodes(G, pos,
                            node_color=[COLORS[l] for l in labels],
                            node_size=400, ax=ax)
+    def _prob_str(p):
+        if np.ndim(p) == 0:
+            return f"p={p:.3f}"
+        return f"p1={p[1]:.3f}"   # softmax score for partition 1
+
     nx.draw_networkx_labels(G, pos,
-                            labels={i: f"{i}\np={probs[i]:.5f}" for i in G.nodes()},
+                            labels={i: f"{i}\n{_prob_str(probs[i])}" for i in G.nodes()},
                             font_size=6, font_color="white", ax=ax)
     nx.draw_networkx_edges(G, pos, edgelist=same_e,
                            edge_color="#aaaaaa", alpha=0.5, ax=ax)
