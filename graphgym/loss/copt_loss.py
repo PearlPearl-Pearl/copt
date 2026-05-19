@@ -175,6 +175,59 @@ def mds_loss_pyg(data, beta=1.0):
 #     return loss / batch.size(0)
 
 
+@register_loss("mis_loss_annealed")
+def mis_loss_annealed_pyg(batch, tau=1.0, eps=1e-8, **kwargs):
+    """
+    Annealed loss for Maximum Independent Set (Sun et al., 2022).
+
+    Implements Equation 6 of the paper:
+
+        L_tau(phi) = E_{x ~ Q_phi}[f(x)] - tau * H(Q_phi)
+
+    For unweighted MIS, the energy function (Equation 12) is:
+
+        f(x) = - sum_i x_i + sum_{(i,j) in E} x_i * x_j
+
+    Under the product variational distribution, the expected energy
+    (Equation 13) becomes:
+
+        E_{x ~ Q_phi}[f(x)] = - sum_i phi_i + sum_{(i,j) in E} phi_i * phi_j
+
+    The entropy of the product distribution is:
+
+        H(Q_phi) = - sum_i [ phi_i * log(phi_i) + (1 - phi_i) * log(1 - phi_i) ]
+
+    Combining gives the final loss to minimize:
+
+        L_tau(phi) = - sum_i phi_i
+                     + sum_{(i,j) in E} phi_i * phi_j
+                     + tau * sum_i [ phi_i * log(phi_i) + (1 - phi_i) * log(1 - phi_i) ]
+
+    The temperature tau is annealed during training via an external scheduler.
+    """
+    data_list = batch.to_data_list()
+    loss = 0.0
+    for data in data_list:
+        src, dst = data.edge_index[0], data.edge_index[1]
+        phi = data.x.squeeze()  # (n,) probabilities in [0, 1]
+
+        # term 1: reward including nodes (Equation 13, first part)
+        loss1 = torch.sum(phi)
+
+        # term 2: penalty for adjacent nodes both being selected (Equation 13, second part)
+        loss2 = torch.sum(phi[src] * phi[dst])
+
+        # term 3: negative entropy of Q_phi (smoothing term, Equation 6)
+        loss3 = torch.sum(
+            phi * torch.log(phi + eps)
+            + (1 - phi) * torch.log(1 - phi + eps)
+        )
+
+        loss += (-loss1 + loss2 + tau * loss3) * data.num_nodes
+
+    return loss / batch.size(0)
+
+
 @register_loss("mis_loss")
 def mis_loss_pyg(batch, beta=0.1):
     data_list = batch.to_data_list()
@@ -391,36 +444,27 @@ def maxbipartite_loss(output, adj, beta):
 #     return loss / batch.size(0)
 
 @register_loss("gp_loss_balanced")
-def gp_loss_balanced_pyg(
-    batch,
-    lam=1.0,
-    **kwargs
-):
+def gp_loss_balanced_pyg(batch, lam1=1.0, lam2=1.0, **kwargs):
     """
-    Laplacian-quadratic graph bisection loss (scalar node assignment).
-
-        L = x^T L x  +  lam * (sum_i x_i - n/2)^2
-
-    where L = D - A is the unnormalized graph Laplacian.
-
-    The first term equals sum_{(i,j) in E} (x_i - x_j)^2, penalising cut
-    edges.  The second term is a soft balance constraint pushing the total
-    assignment toward n/2 (i.e. equal-sized partitions when x_i in [0,1]).
+    L = x^T L x + lam1 * (sum_i x_i - n/2)^2 + lam2 * sum_i x_i(1 - x_i)
     """
     data_list = batch.to_data_list()
     total_loss = 0.0
-
     for data in data_list:
-        x = data.x.squeeze()          # (n,) scalar assignment per node
+        x = data.x.squeeze()
         n = data.num_nodes
-        src = data.edge_index[0]
-        dst = data.edge_index[1]
-
-        loss_cut     = torch.sum((x[src] - x[dst]) ** 2)
+        src, dst = data.edge_index[0], data.edge_index[1]
+        
+        # cut term
+        loss_cut = torch.sum((x[src] - x[dst]) ** 2)
+        
+        # balance term
         loss_balance = (x.sum() - n / 2.0) ** 2
-
-        total_loss += loss_cut + lam * loss_balance
-
+        
+        # discreteness term (NEW)
+        loss_discrete = torch.sum(x * (1 - x))
+        
+        total_loss += loss_cut + lam1 * loss_balance + lam2 * loss_discrete
     return total_loss / batch.size(0)
 
 

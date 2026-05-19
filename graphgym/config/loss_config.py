@@ -16,6 +16,10 @@ def loss_param_cfg(cfg):
     cfg.mis_loss.beta = 1.0
     # cfg.mis_loss.k = 2
 
+    cfg.mis_loss_annealed = CN()
+    cfg.mis_loss_annealed.tau = 1.0   # initial temperature (overridden by scheduler)
+    cfg.mis_loss_annealed.eps = 1e-8  # numerical guard for log(0)
+
     cfg.plantedclique_loss = CN()
 
     cfg.metrics = CN()

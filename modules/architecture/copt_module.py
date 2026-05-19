@@ -41,6 +41,17 @@ class COPTModule(GraphGymModule):
             self.eval_func_dict[key] = eval_func
 
         self._test_probs = []   # accumulates batch.x across test batches
+        self._current_tau = cfg.optim.entropy.base_temp  # tracked for logging
+
+    def on_train_epoch_start(self):
+        if cfg.optim.entropy.enable and cfg.model.loss_fun == "mis_loss_annealed":
+            tau = cfg.optim.entropy.base_temp / (1.0 + self.alpha * self.current_epoch)
+            loss_func = register.loss_dict[cfg.model.loss_fun]
+            loss_params = dict(cfg[cfg.model.loss_fun])
+            loss_params['tau'] = tau
+            self.loss_func = partial(loss_func, **loss_params)
+            self._current_tau = tau
+            print(f"  [anneal] epoch {self.current_epoch:3d}  tau = {tau:.6f}")
 
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)
@@ -67,15 +78,19 @@ class COPTModule(GraphGymModule):
         if cfg.train.log_probs:
             self._log_probs(batch, "train")
 
-        if cfg.optim.entropy.enable:
+        if cfg.optim.entropy.enable and cfg.model.loss_fun == "mis_loss_annealed":
+            # tau is already baked into loss via on_train_epoch_start; just log it
+            self.log("train/tau", self._current_tau, batch_size=batch.batch_size,
+                     on_step=False, on_epoch=True, prog_bar=False, logger=True)
+        elif cfg.optim.entropy.enable:
+            # legacy additive entropy correction for other losses
             if cfg.optim.entropy.scheduler == "linear-energy":
                 tau = cfg.optim.entropy.base_temp / (1.0 + self.alpha * self.current_epoch)
             elif cfg.optim.entropy.scheduler == "linear-entropy":
                 tau = cfg.optim.entropy.base_temp - self.alpha * self.current_epoch
-                
+
             H = tau * entropy(out)
             self.log("loss/train-entropy", H, batch_size=batch.batch_size, on_step=True, prog_bar=True, logger=True)
-
             loss -= H
             self.log("loss/train-anneal-loss", loss, batch_size=batch.batch_size, on_step=True, prog_bar=True, logger=True)
 
