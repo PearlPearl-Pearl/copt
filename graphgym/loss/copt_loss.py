@@ -462,7 +462,7 @@ def gp_loss_balanced_pyg(batch, lam1=1.0, lam2=1.0, **kwargs):
         loss_balance = (x.sum() - n / 2.0) ** 2
         
         # discreteness term (NEW)
-        loss_discrete = torch.sum(x * (1 - x))
+        loss_discrete = torch.sum((x * (1 - x))**2)
         
         total_loss += loss_cut + lam1 * loss_balance + lam2 * loss_discrete
     return total_loss / batch.size(0)
