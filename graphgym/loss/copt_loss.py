@@ -390,93 +390,141 @@ def maxbipartite_loss(output, adj, beta):
 #         loss += (loss1 + beta1 * loss2 + beta2 * loss3) * data.num_nodes
 #     return loss / batch.size(0)
 
+@register_loss("gp_loss_balanced")
+def gp_loss_balanced_pyg(
+    batch,
+    lam=1.0,
+    **kwargs
+):
+    """
+    Laplacian-quadratic graph bisection loss (scalar node assignment).
+
+        L = x^T L x  +  lam * (sum_i x_i - n/2)^2
+
+    where L = D - A is the unnormalized graph Laplacian.
+
+    The first term equals sum_{(i,j) in E} (x_i - x_j)^2, penalising cut
+    edges.  The second term is a soft balance constraint pushing the total
+    assignment toward n/2 (i.e. equal-sized partitions when x_i in [0,1]).
+    """
+    data_list = batch.to_data_list()
+    total_loss = 0.0
+
+    for data in data_list:
+        x = data.x.squeeze()          # (n,) scalar assignment per node
+        n = data.num_nodes
+        src = data.edge_index[0]
+        dst = data.edge_index[1]
+
+        loss_cut     = torch.sum((x[src] - x[dst]) ** 2)
+        loss_balance = (x.sum() - n / 2.0) ** 2
+
+        total_loss += loss_cut + lam * loss_balance
+
+    return total_loss / batch.size(0)
+
+
 @register_loss("gp_loss")
 def gp_loss_pyg(
     batch,
-    alpha=1.0, # edge coefficient
-    beta=1.0, # non-edge coefficient
+    k=2,
+    alpha=1.0,
+    beta=10.0,
+    gamma=1.0,
+    delta=1.0,
     eps=1e-8,
     **kwargs
 ):
     """
-    Loss:
+    Graph k-partition loss.
 
-        L =
-        beta * sum_{i != j, (i,j) not in E} (x_i · x_j)^2
-        +
-        alpha * sum_{(i,j) in E} (1 - x_i · x_j)^2
+    data.x is assumed to contain node embeddings of shape (num_nodes, d).
 
-    where x_i are node embeddings.
+    Terms:
+        1. Edge smoothness:
+           connected nodes should be close on the unit sphere.
+
+        2. Quantization:
+           each node should move toward one of k prototype directions.
+
+        3. Balance:
+           avoid putting all nodes in the same partition.
+
+        4. Norm:
+           keep embeddings close to the unit sphere.
     """
 
     data_list = batch.to_data_list()
     total_loss = 0.0
 
     for data in data_list:
-
         x = data.x
         device = x.device
-        n = data.num_nodes
+        n, d = x.shape
 
-        src = data.edge_index[0]
-        dst = data.edge_index[1]
+        src, dst = data.edge_index[0], data.edge_index[1]
 
-        # ---------------------------------------
-        # Optional normalization
-        # ---------------------------------------
-        x = x / (
-            torch.linalg.norm(x, dim=-1, keepdim=True) + eps
-        )
+        # Normalize embeddings for dot-product geometry
+        x_norm = x / (torch.linalg.norm(x, dim=-1, keepdim=True) + eps)
 
-        # ---------------------------------------
-        # Compute all dot products
-        # ---------------------------------------
-        dot_matrix = x @ x.T
+        # -------------------------------------------------
+        # Build k prototype directions
+        # -------------------------------------------------
+        if d == 2:
+            angles = torch.arange(k, device=device, dtype=x.dtype) * (2.0 * torch.pi / k)
+            prototypes = torch.stack(
+                [torch.cos(angles), torch.sin(angles)],
+                dim=-1
+            )
+        else:
+            # For d > 2, use random fixed directions on the unit sphere
+            # You may replace this later by simplex prototypes.
+            prototypes = torch.randn(k, d, device=device, dtype=x.dtype)
+            prototypes = prototypes / (
+                torch.linalg.norm(prototypes, dim=-1, keepdim=True) + eps
+            )
 
-        # ---------------------------------------
-        # Edge term:
-        #
-        # sum_{(i,j) in E} (1 - x_i · x_j)^2
-        # ---------------------------------------
-        edge_dot = dot_matrix[src, dst]
+        # -------------------------------------------------
+        # Term 1: edge attraction
+        # L_edge = sum_{(i,j) in E} w_ij (1 - <x_i, x_j>)
+        # -------------------------------------------------
+        edge_dot = torch.sum(x_norm[src] * x_norm[dst], dim=-1)
+        loss_edge = torch.mean(1.0 - edge_dot)
 
-        loss_edge = torch.sum(
-            (1.0 - edge_dot) ** 2
-        )
+        # -------------------------------------------------
+        # Term 2: quantization to nearest prototype
+        # L_quant = sum_i min_r ||x_i - c_r||^2
+        # -------------------------------------------------
+        dist_to_proto = torch.cdist(x_norm, prototypes, p=2) ** 2
+        min_dist = torch.min(dist_to_proto, dim=1).values
+        loss_quant = torch.mean(min_dist)
 
-        # ---------------------------------------
-        # Build adjacency mask
-        # ---------------------------------------
-        adj_mask = torch.zeros(
-            (n, n),
-            dtype=torch.bool,
-            device=device
-        )
+        # -------------------------------------------------
+        # Soft assignment to prototypes
+        # q_ir = softmax(<x_i, c_r>)
+        # -------------------------------------------------
+        logits = x_norm @ prototypes.T
+        q = torch.softmax(logits, dim=-1)
 
-        adj_mask[src, dst] = True
+        # -------------------------------------------------
+        # Term 3: balance penalty
+        # each cluster should receive about n/k nodes
+        # -------------------------------------------------
+        cluster_mass = torch.mean(q, dim=0)
+        target_mass = torch.full_like(cluster_mass, 1.0 / k)
+        loss_balance = torch.sum((cluster_mass - target_mass) ** 2)
 
-        # remove self-pairs
-        adj_mask.fill_diagonal_(True)
+        # -------------------------------------------------
+        # Term 4: unit norm penalty
+        # -------------------------------------------------
+        norms = torch.linalg.norm(x, dim=-1)
+        loss_norm = torch.mean((norms - 1.0) ** 2)
 
-        # ---------------------------------------
-        # Non-edge term:
-        #
-        # sum_{i != j, (i,j) not in E} (x_i · x_j)^2
-        # ---------------------------------------
-        non_edge_mask = ~adj_mask
-
-        non_edge_dot = dot_matrix[non_edge_mask]
-
-        loss_nonedge = torch.sum(
-            non_edge_dot ** 2
-        )
-
-        # ---------------------------------------
-        # Final loss
-        # ---------------------------------------
         loss = (
             alpha * loss_edge
-            + beta * loss_nonedge
+            + beta * loss_quant
+            + gamma * loss_balance
+            + delta * loss_norm
         )
 
         total_loss += loss
