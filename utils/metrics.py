@@ -412,8 +412,14 @@ def greedy_mis_size(batch, **_):
 #     return (y >= 0).long()
 
 def gp_decoder(data, k=2, eps=1e-8):
-    from sklearn.cluster import KMeans
     x = data.x                                                          # (n, d)
+    if x.shape[1] == 1:
+        # scalar output: threshold at median — no KMeans needed
+        x_flat = x.squeeze(-1).detach()
+        threshold = x_flat.median()
+        labels = (x_flat >= threshold).long()
+        return labels
+    from sklearn.cluster import KMeans
     x_norm = (x / (torch.linalg.norm(x, dim=-1, keepdim=True) + eps)).detach().cpu().numpy()
     labels = KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(x_norm)
     return torch.tensor(labels, dtype=torch.long, device=data.x.device)
