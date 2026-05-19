@@ -76,12 +76,13 @@ def adj_numpy(data) -> np.ndarray:
 
 
 def find_probs(run_dir: str):
-    path = os.path.join(run_dir, "probs_test.pt")
-    if os.path.exists(path):
-        return path
-    # fall back: most recent across all runs
+    # always use the most recently modified probs_test.pt across all runs
     candidates = glob.glob("results/**/probs_test.pt", recursive=True)
-    return max(candidates, key=os.path.getmtime) if candidates else None
+    if not candidates:
+        return None
+    latest = max(candidates, key=os.path.getmtime)
+    print(f"[find_probs] using most recent: {latest}")
+    return latest
 
 
 def draw_partition(ax, G, pos, probs, labels, title, cf):
