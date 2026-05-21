@@ -50,10 +50,11 @@ def plot_comparison(gcon_csv, hybrid_csv):
     if hybrid_csv: dfs["hybridconv"] = pd.read_csv(hybrid_csv)
 
     colors = {"gcon": C_GCON, "hybridconv": C_HYBRID}
+    labels = {"gcon": "GCON", "hybridconv": "Scattering Clique"}
 
     for col, ylabel, title, fname in [
-        ("loss/train", "Training loss",   "MIS — Training Loss: gcon vs hybridconv",   "mis_train_loss.png"),
-        ("loss/valid", "Validation loss", "MIS — Validation Loss: gcon vs hybridconv", "mis_val_loss.png"),
+        ("loss/train", "Training loss",   "MIS — Training Loss: GCON vs Scattering Clique",   "mis_train_loss.png"),
+        ("loss/valid", "Validation loss", "MIS — Validation Loss: GCON vs Scattering Clique", "mis_val_loss.png"),
     ]:
         fig, ax = plt.subplots(figsize=(8, 5))
         for name, df in dfs.items():
@@ -61,7 +62,7 @@ def plot_comparison(gcon_csv, hybrid_csv):
             if series.empty:
                 print(f"  [warn] '{col}' not found for {name}")
                 continue
-            ax.plot(series.index, series.values, label=name,
+            ax.plot(series.index, series.values, label=labels[name],
                     color=colors[name], linewidth=2, marker="o", markersize=3)
         ax.set_xlabel("Epoch", fontsize=12)
         ax.set_ylabel(ylabel,  fontsize=12)
@@ -190,8 +191,8 @@ def visualise_combined(gcon_ckpt, gcon_cfg, hybrid_ckpt, hybrid_cfg, graph_idx, 
     # panel 2: gcon solution
     draw_is(axes[1], G, pos, ei, selected_gcon,   "GCON Solution")
 
-    # panel 3: hybridconv solution
-    draw_is(axes[2], G, pos, ei, selected_hybrid, "Hybridconv Solution")
+    # panel 3: scattering clique solution
+    draw_is(axes[2], G, pos, ei, selected_hybrid, "Scattering Clique Solution")
 
     plt.tight_layout()
     plt.savefig(out_path, dpi=150)

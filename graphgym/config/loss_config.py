@@ -42,7 +42,7 @@ def loss_param_cfg(cfg):
     cfg.gp_loss.beta  = 1.0    # non-edge term weight — (x_i·x_j)^2 on non-edges
 
     cfg.gp_loss_balanced = CN()
-    cfg.gp_loss_balanced.beta = 1000.0   # non-adjacent same-partition penalty
+    cfg.gp_loss_balanced.beta = 500.0    # non-adjacent same-partition penalty
     cfg.gp_loss_balanced.gamma = 1000.0  # balance penalty
     cfg.gp_loss_balanced.k = 2           # number of partitions
 

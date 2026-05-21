@@ -97,7 +97,7 @@ optim:
     min_temp: 0.001
 
 gp_loss_balanced:
-  beta: 1000.0
+  beta: 500.0
   gamma: 1000.0
   k: 3
 
