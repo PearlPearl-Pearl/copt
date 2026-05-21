@@ -229,7 +229,7 @@ def mis_loss_annealed_pyg(batch, tau=1.0, eps=1e-8, **kwargs):
 
 
 @register_loss("mis_loss")
-def mis_loss_pyg(batch, alpha=1.0, beta=1.01):
+def mis_loss_pyg(batch, alpha=1.0, beta=10.0):
     data_list = batch.to_data_list()
 
     loss = 0.0
