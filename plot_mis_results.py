@@ -126,10 +126,11 @@ def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path):
         ckpt_path, dim_in=cfg.share.dim_in, dim_out=cfg.share.dim_out, cfg=cfg
     )
     model.eval()
+    device = next(model.parameters()).device
 
     # add batch index so the model can handle a single graph
     data.batch = torch.zeros(n, dtype=torch.long)
-    batch = Batch.from_data_list([data])
+    batch = Batch.from_data_list([data]).to(device)
 
     with torch.no_grad():
         model(batch)
