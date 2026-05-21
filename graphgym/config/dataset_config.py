@@ -143,7 +143,7 @@ def rb_cfg(cfg):
     """
     cfg.rb = CN()
     # features can be one of ['node_const', 'node_onehot', 'node_clustering_coefficient', 'node_pagerank']
-    cfg.rb.num_samples = 4500
+    cfg.rb.num_samples = 5000
 
 
 @register_config('rb_small_cfg')
@@ -151,10 +151,10 @@ def rb_small_cfg(cfg):
     """Configuration options for nx datasets.
     """
     cfg.rb.small = CN()
-    cfg.rb.small.num_samples = 4500
-    cfg.rb.small.n = (200, 300)
-    cfg.rb.small.na = (20, 25)
-    cfg.rb.small.k = (5, 12)
+    cfg.rb.small.num_samples = 5000
+    cfg.rb.small.n = (50, 100)
+    cfg.rb.small.na = (7, 10)
+    cfg.rb.small.k = (7, 10)
 
 
 @register_config('rb_large_cfg')
