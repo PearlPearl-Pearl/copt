@@ -75,7 +75,7 @@ def plot_comparison(gcon_csv, hybrid_csv):
 
 # ── IS graph visualisation ────────────────────────────────────────────────────
 
-def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path):
+def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path, model_name="gcon"):
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
 
@@ -160,7 +160,7 @@ def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path):
 
     fig, axes = plt.subplots(1, 2, figsize=(16, 7))
     fig.suptitle(
-        f"MIS — gcon — test graph {graph_idx}  ({n} nodes,  {G.number_of_edges()} edges)",
+        f"MIS — {model_name} — test graph {graph_idx}  ({n} nodes,  {G.number_of_edges()} edges)",
         fontsize=13,
     )
 
@@ -213,12 +213,22 @@ def main():
     print("── Loss curves ──────────────────────────────────────────────")
     plot_comparison(gcon_csv, hybrid_csv)
 
+    hybrid_ckpt = latest_csv("results/mis_rb_small_hybridconv*/**/*.ckpt")
+    hybrid_cfg  = "configs/benchmarks/mis/mis_rb_small_hybridconv.yaml"
+
     print("\n── IS visualisation (gcon) ──────────────────────────────────")
     if gcon_ckpt and os.path.exists(gcon_cfg):
         print(f"  checkpoint : {gcon_ckpt}")
-        visualise_mis(gcon_ckpt, gcon_cfg, args.graph_idx, "mis_gcon_is_graph.png")
+        visualise_mis(gcon_ckpt, gcon_cfg, args.graph_idx, "mis_gcon_is_graph.png", "gcon")
     else:
-        print("  [warn] gcon checkpoint or config not found, skipping visualisation")
+        print("  [warn] gcon checkpoint or config not found, skipping")
+
+    print("\n── IS visualisation (hybridconv) ────────────────────────────")
+    if hybrid_ckpt and os.path.exists(hybrid_cfg):
+        print(f"  checkpoint : {hybrid_ckpt}")
+        visualise_mis(hybrid_ckpt, hybrid_cfg, args.graph_idx, "mis_hybridconv_is_graph.png", "hybridconv")
+    else:
+        print("  [warn] hybridconv checkpoint or config not found, skipping")
 
     print("\nDone.")
 
