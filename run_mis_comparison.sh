@@ -10,7 +10,7 @@ set -e
 CONDA_ENV="main_paper_env"
 CFG_GCON="configs/benchmarks/mis/mis_rb_small_gcon.yaml"
 CFG_HYBRID="configs/benchmarks/mis/mis_rb_small_hybridconv.yaml"
-EPOCHS=20
+EPOCHS=100
 PLOT_OUT="mis_loss_curves_new.png"
 LOG_GCON="run_mis_gcon_new.log"
 LOG_HYBRID="run_mis_hybridconv_new.log"
