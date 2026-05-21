@@ -13,7 +13,8 @@ def loss_param_cfg(cfg):
     cfg.mds_loss.beta = 1.0
 
     cfg.mis_loss = CN()
-    cfg.mis_loss.beta = 1.0
+    cfg.mis_loss.alpha = 1.0
+    cfg.mis_loss.beta = 1.01
     # cfg.mis_loss.k = 2
 
     cfg.mis_loss_annealed = CN()

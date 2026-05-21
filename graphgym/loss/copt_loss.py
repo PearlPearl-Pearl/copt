@@ -229,7 +229,7 @@ def mis_loss_annealed_pyg(batch, tau=1.0, eps=1e-8, **kwargs):
 
 
 @register_loss("mis_loss")
-def mis_loss_pyg(batch, beta=0.1):
+def mis_loss_pyg(batch, alpha=1.0, beta=1.01):
     data_list = batch.to_data_list()
 
     loss = 0.0
@@ -239,9 +239,9 @@ def mis_loss_pyg(batch, beta=0.1):
         loss1 = torch.sum(data.x)
         loss2 = torch.sum(data.x[src]*data.x[dst])
 
-        loss += (-loss1 + beta*loss2)*data.num_nodes
+        loss += (-alpha*loss1 + beta*loss2)*data.num_nodes
 
-        return loss/batch.size(0)
+    return loss/batch.size(0)
 
 ### MAXBIPARTITE ###
 

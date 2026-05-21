@@ -12,8 +12,8 @@ CFG_GCON="configs/benchmarks/mis/mis_rb_small_gcon.yaml"
 CFG_HYBRID="configs/benchmarks/mis/mis_rb_small_hybridconv.yaml"
 EPOCHS=100
 PLOT_OUT="mis_loss_curves.png"
-LOG_GCON="run_mis_gcon.log"
-LOG_HYBRID="run_mis_hybridconv.log"
+LOG_GCON="run_mis_gcon_new.log"
+LOG_HYBRID="run_mis_hybridconv_new.log"
 
 # ── activate conda env (skipped automatically on Colab / bare Python envs) ───
 if command -v conda &>/dev/null; then

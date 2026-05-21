@@ -97,7 +97,8 @@ optim:
     min_temp: 0.001
 
 mis_loss:
-  beta: 1.0
+  alpha: 1.0
+  beta: 1.01
 
 metrics:
   mis:
