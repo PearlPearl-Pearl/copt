@@ -469,32 +469,32 @@ def maxbipartite_loss(output, adj, beta):
 
 
 @register_loss("gp_loss_balanced")
-def gp_loss_balanced_pyg(batch, beta=1000, gamma=1.0, **kwargs):
+def gp_loss_balanced_pyg(batch, beta=1000, gamma=1.0, k=2, **kwargs):
     data_list = batch.to_data_list()
     loss = 0.0
     for data in data_list:
         src, dst = data.edge_index[0], data.edge_index[1]
         n = data.num_nodes
-        
+
         # term 1: push adjacent nodes to same partition
         loss1 = torch.sum((data.x[src] - data.x[dst]) ** 2)
-        
+
         # term 2: penalize non-adjacent nodes in same partition
         # compute all pairwise differences
         diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)  # (n, n, 1)
         all_pairs = (diff ** 2).squeeze(-1)  # (n, n)
-        
+
         # mask out diagonal and adjacent pairs
         adj_mask = torch.zeros(n, n, dtype=torch.bool)
         adj_mask[src, dst] = True
         adj_mask.fill_diagonal_(True)
-        
+
         non_adj_pairs = (~adj_mask)
         loss2 = torch.sum(1 - all_pairs[non_adj_pairs])
-        
-        # term 3: explicit balance constraint
-        loss3 = (data.x.sum() - n / 2.0) ** 2
-        
+
+        # term 3: balance constraint — each partition should contain n/k nodes
+        loss3 = (data.x.sum() - n / float(k)) ** 2
+
         loss += (loss1 + beta * loss2 + gamma * loss3) * data.num_nodes
     return loss / batch.size(0)
 
