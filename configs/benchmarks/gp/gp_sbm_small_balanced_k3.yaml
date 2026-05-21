@@ -85,7 +85,7 @@ gnn:
 
 optim:
   base_lr: 0.003
-  max_epoch: 20
+  max_epoch: 10
   optimizer: adam
   weight_decay: 1e-5
   scheduler: cosine_with_warmup
@@ -98,7 +98,7 @@ optim:
 
 gp_loss_balanced:
   beta: 1000.0
-  gamma: 900.0
+  gamma: 1000.0
   k: 3
 
 metrics:
