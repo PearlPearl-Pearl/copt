@@ -54,7 +54,12 @@ def decode_gnn(emb: np.ndarray, k: int = 2) -> np.ndarray:
     """
     from sklearn.cluster import KMeans
     if emb.ndim == 1:
-        return (emb >= 0.5).astype(int)          # legacy scalar sigmoid fallback
+        emb = emb[:, None]
+    if emb.shape[1] == 1:
+        if k == 2:
+            return (emb.squeeze() >= 0.5).astype(int)
+        # scalar output, k>2: cluster the raw scalar values directly
+        return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(emb).astype(int)
     norm = np.linalg.norm(emb, axis=-1, keepdims=True) + 1e-8
     x_norm = emb / norm
     return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(x_norm).astype(int)
@@ -192,18 +197,16 @@ def main():
     k               = cfg.metrics.gp.k
     gnn_labels = decode_gnn(gnn_probs, k=k)
     gnn_cf     = cut_fraction(data.edge_index, gnn_labels)
-    p0, p1     = (gnn_labels == 0).sum(), (gnn_labels == 1).sum()
-    print(f"GNN partition : P0={p0} nodes  P1={p1} nodes  "
-          f"cut fraction={gnn_cf:.4f}")
+    parts_str  = "  ".join(f"P{p}={( gnn_labels == p).sum()}" for p in range(k))
+    print(f"GNN partition : {parts_str}  cut fraction={gnn_cf:.4f}")
 
     # ── spectral baseline ─────────────────────────────────────────────────────
     A               = adj_numpy(data)
     spectral_labels = spectral_partition(A, k)
     spectral_probs  = np.where(spectral_labels == 0, 0.05, 0.95).astype(float)
     spectral_cf     = cut_fraction(data.edge_index, spectral_labels)
-    s0, s1          = (spectral_labels == 0).sum(), (spectral_labels == 1).sum()
-    print(f"Spectral      : P0={s0} nodes  P1={s1} nodes  "
-          f"cut fraction={spectral_cf:.4f}")
+    s_str           = "  ".join(f"P{p}={(spectral_labels == p).sum()}" for p in range(k))
+    print(f"Spectral      : {s_str}  cut fraction={spectral_cf:.4f}")
 
     # ── build networkx graph ──────────────────────────────────────────────────
     ei   = remove_self_loops(data.edge_index)[0].cpu().numpy()
