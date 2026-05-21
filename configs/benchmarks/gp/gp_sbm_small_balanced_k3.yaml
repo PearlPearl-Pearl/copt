@@ -3,7 +3,7 @@ out_dir: results
 metric_best: loss
 metric_agg: argmin
 num_workers: 4
-dim_out: 1          # scalar assignment per node
+dim_out: 3          # 3-dim softmax vector per node (one logit per partition)
 wandb:
   use: False
   name: gp_sbm_small_balanced_k3
@@ -78,7 +78,7 @@ gnn:
   stage_type: skipsum
   batchnorm: true
   act: elu
-  last_act: null
+  last_act: softmax
   dropout: 0.3
   agg: mean
   normalize_adj: false
@@ -97,8 +97,8 @@ optim:
     min_temp: 0.001
 
 gp_loss_balanced:
-  beta: 500.0
-  gamma: 1000.0
+  beta: 1000.0
+  gamma: 900.0
   k: 3
 
 metrics:

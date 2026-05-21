@@ -48,21 +48,22 @@ COLORS = ["#4878CF", "#D65F5F", "#6ACC65", "#B47CC7", "#C4AD66"]  # up to 5 part
 #     return ((2 * probs - 1) >= 0).astype(int)
 
 def decode_gnn(emb: np.ndarray, k: int = 2) -> np.ndarray:
-    """K-means on unit-sphere-normalised embeddings.
-    The partition directions emerge from training so we cluster rather than
-    project onto fixed prototypes.
+    """Decode GNN output to partition labels.
+
+    - dim_out == k  (softmax vector): argmax directly gives the partition.
+    - dim_out == 1, k == 2: threshold at 0.5.
+    - dim_out == 1, k > 2 : 1-D KMeans (legacy scalar configs).
     """
     from sklearn.cluster import KMeans
     if emb.ndim == 1:
         emb = emb[:, None]
-    if emb.shape[1] == 1:
-        if k == 2:
-            return (emb.squeeze() >= 0.5).astype(int)
-        # scalar output, k>2: cluster the raw scalar values directly
-        return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(emb).astype(int)
-    norm = np.linalg.norm(emb, axis=-1, keepdims=True) + 1e-8
-    x_norm = emb / norm
-    return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(x_norm).astype(int)
+    if emb.shape[1] > 1:
+        # multi-dim output (softmax): take argmax
+        return np.argmax(emb, axis=-1).astype(int)
+    # scalar output
+    if k == 2:
+        return (emb.squeeze() >= 0.5).astype(int)
+    return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(emb).astype(int)
 
 
 def cut_fraction(edge_index, labels) -> float:

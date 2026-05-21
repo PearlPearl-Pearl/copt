@@ -492,7 +492,7 @@ def gp_loss_balanced_pyg(batch, beta=500, gamma=1000, k=2, **kwargs):
         adj_mask.fill_diagonal_(True)
         non_adj_mask = (~adj_mask).unsqueeze(-1).expand_as(all_pairs)  # (n, n, k)
 
-        loss2 = torch.sum(1 - all_pairs[non_adj_mask])
+        loss2 = torch.sum((1 - all_pairs[non_adj_mask])**2)
 
         # term 3: balance constraint — each partition c should have n/k nodes
         # data.x.sum(0) is (k,) — sum over nodes for each partition
