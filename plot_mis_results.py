@@ -75,14 +75,16 @@ def plot_comparison(gcon_csv, hybrid_csv):
 
 # ── IS graph visualisation ────────────────────────────────────────────────────
 
-def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path, model_name="gcon"):
+def get_is_solution(ckpt_path, cfg_path, graph_idx):
+    """Load model, run inference on one test graph, return (data, G, pos, selected)."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
 
     from torch_geometric.graphgym.config import cfg, set_cfg, load_cfg
-    from graphgym.loader.dataset.rb_dataset import RBDataset
+    from graphgym.patches import create_loader
+    from torch_geometric.data import Batch
+    from modules.architecture.copt_module import COPTModule
 
-    # ── load config ───────────────────────────────────────────────────────────
     set_cfg(cfg)
     cfg.train.mode = None
 
@@ -91,45 +93,32 @@ def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path, model_name="gcon"):
         opts = []
 
     load_cfg(cfg, _Args())
-
-    # ── load dataset ──────────────────────────────────────────────────────────
-    from graphgym.patches import create_loader
-    from torch_geometric.data import Batch
     cfg.dataset.split_index = 0
     loaders = create_loader()
-    test_loader = loaders[-1]   # train / val / test
-
     test_graphs = []
-    for batch in test_loader:
+    for batch in loaders[-1]:
         test_graphs.extend(batch.to_data_list())
 
-    print(f"Test set: {len(test_graphs)} graphs")
     data = test_graphs[graph_idx]
     n = data.num_nodes
-    print(f"\nGraph {graph_idx}: {n} nodes")
 
-    # ── load model and run inference ──────────────────────────────────────────
-    from modules.architecture.copt_module import COPTModule
-    cfg.share.dim_in  = data.x.shape[1] if data.x is not None else 1
+    cfg.share.dim_in  = data.x.shape[1]
     cfg.share.dim_out = cfg.dim_out
-
     model = COPTModule.load_from_checkpoint(
         ckpt_path, dim_in=cfg.share.dim_in, dim_out=cfg.share.dim_out, cfg=cfg
     )
     model.eval()
     device = next(model.parameters()).device
 
-    # add batch index so the model can handle a single graph
     data.batch = torch.zeros(n, dtype=torch.long)
     batch = Batch.from_data_list([data]).to(device)
-
     with torch.no_grad():
         model(batch)
 
-    probs = batch.x.squeeze().cpu().numpy()   # (n,) after sigmoid
+    probs = batch.x.squeeze().cpu().numpy()
 
-    # ── greedy IS decoder ─────────────────────────────────────────────────────
-    order = np.argsort(probs)[::-1]           # descending probability
+    # greedy IS decoder
+    order = np.argsort(probs)[::-1]
     ei = remove_self_loops(data.edge_index)[0].numpy()
     adj = {i: set() for i in range(n)}
     for s, d in zip(ei[0], ei[1]):
@@ -143,54 +132,66 @@ def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path, model_name="gcon"):
             for nb in adj[idx]:
                 blocked[nb] = True
 
-    is_size = selected.sum()
-    print(f"IS size: {is_size}  ({100*is_size/n:.1f}% of nodes)")
-
-    # ── draw ──────────────────────────────────────────────────────────────────
     mask = ei[0] < ei[1]
     G = nx.Graph()
     G.add_nodes_from(range(n))
     G.add_edges_from(zip(ei[0][mask], ei[1][mask]))
-    pos = nx.spring_layout(G, seed=42)
 
-    colors = ["#e74c3c" if selected[i] else "#95a5a6" for i in range(n)]
-    sizes  = [120 if selected[i] else 40 for i in range(n)]
+    return data, G, ei, selected
 
+
+def draw_is(ax, G, pos, ei, selected, title):
+    from matplotlib.patches import Patch
+    n = G.number_of_nodes()
+    is_size = selected.sum()
     bad_edges = [(u, v) for u, v in G.edges() if selected[u] and selected[v]]
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
-    fig.suptitle(
-        f"MIS — {model_name} — test graph {graph_idx}  ({n} nodes,  {G.number_of_edges()} edges)",
-        fontsize=13,
-    )
-
-    # left: raw graph
-    ax = axes[0]
-    nx.draw_networkx_nodes(G, pos, node_color="#95a5a6", node_size=60, ax=ax)
-    nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
-    ax.set_title("Input graph", fontsize=11)
-    ax.axis("off")
-
-    # right: IS solution
-    ax = axes[1]
     colors = ["#e74c3c" if selected[i] else "#95a5a6" for i in range(n)]
     sizes  = [120 if selected[i] else 40 for i in range(n)]
+
     nx.draw_networkx_nodes(G, pos, node_color=colors, node_size=sizes, ax=ax)
     nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
     if bad_edges:
         nx.draw_networkx_edges(G, pos, edgelist=bad_edges,
                                edge_color="black", width=3, ax=ax)
-
-    from matplotlib.patches import Patch
     ax.legend(handles=[
         Patch(color="#e74c3c", label=f"In IS ({is_size})"),
         Patch(color="#95a5a6", label=f"Not in IS ({n - is_size})"),
-    ], fontsize=10)
+    ], fontsize=9, loc="lower left")
     ax.set_title(
-        f"GNN solution — IS size = {is_size} ({100*is_size/n:.1f}%)  violations = {len(bad_edges)}",
+        f"{title}\nIS size = {is_size} ({100*is_size/n:.1f}%)  violations = {len(bad_edges)}",
         fontsize=11,
     )
     ax.axis("off")
+
+
+def visualise_combined(gcon_ckpt, gcon_cfg, hybrid_ckpt, hybrid_cfg, graph_idx, out_path):
+    print("  Running gcon inference...")
+    data, G, ei, selected_gcon = get_is_solution(gcon_ckpt, gcon_cfg, graph_idx)
+    n = G.number_of_nodes()
+    pos = nx.spring_layout(G, seed=42)
+
+    print("  Running hybridconv inference...")
+    _, _, _, selected_hybrid = get_is_solution(hybrid_ckpt, hybrid_cfg, graph_idx)
+
+    fig, axes = plt.subplots(1, 3, figsize=(21, 7))
+    fig.suptitle(
+        f"MIS — test graph {graph_idx}  ({n} nodes,  {G.number_of_edges()} edges)",
+        fontsize=14,
+    )
+
+    # panel 1: raw input graph
+    ax = axes[0]
+    nx.draw_networkx_nodes(G, pos, node_color="#95a5a6", node_size=60, ax=ax)
+    nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
+    ax.set_title("Input Graph", fontsize=12)
+    ax.axis("off")
+
+    # panel 2: gcon solution
+    draw_is(axes[1], G, pos, ei, selected_gcon,   "GCON Solution")
+
+    # panel 3: hybridconv solution
+    draw_is(axes[2], G, pos, ei, selected_hybrid, "Hybridconv Solution")
 
     plt.tight_layout()
     plt.savefig(out_path, dpi=150)
@@ -216,19 +217,14 @@ def main():
     hybrid_ckpt = latest_csv("results/mis_rb_small_hybridconv*/**/*.ckpt")
     hybrid_cfg  = "configs/benchmarks/mis/mis_rb_small_hybridconv.yaml"
 
-    print("\n── IS visualisation (gcon) ──────────────────────────────────")
-    if gcon_ckpt and os.path.exists(gcon_cfg):
-        print(f"  checkpoint : {gcon_ckpt}")
-        visualise_mis(gcon_ckpt, gcon_cfg, args.graph_idx, "mis_gcon_is_graph.png", "gcon")
+    print("\n── IS visualisation ─────────────────────────────────────────")
+    if gcon_ckpt and hybrid_ckpt and os.path.exists(gcon_cfg) and os.path.exists(hybrid_cfg):
+        print(f"  gcon      : {gcon_ckpt}")
+        print(f"  hybridconv: {hybrid_ckpt}")
+        visualise_combined(gcon_ckpt, gcon_cfg, hybrid_ckpt, hybrid_cfg,
+                           args.graph_idx, "mis_is_solutions.png")
     else:
-        print("  [warn] gcon checkpoint or config not found, skipping")
-
-    print("\n── IS visualisation (hybridconv) ────────────────────────────")
-    if hybrid_ckpt and os.path.exists(hybrid_cfg):
-        print(f"  checkpoint : {hybrid_ckpt}")
-        visualise_mis(hybrid_ckpt, hybrid_cfg, args.graph_idx, "mis_hybridconv_is_graph.png", "hybridconv")
-    else:
-        print("  [warn] hybridconv checkpoint or config not found, skipping")
+        print("  [warn] one or both checkpoints/configs not found, skipping")
 
     print("\nDone.")
 
