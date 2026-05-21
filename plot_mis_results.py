@@ -166,6 +166,19 @@ def draw_is(ax, G, pos, ei, selected, title):
     ax.axis("off")
 
 
+def greedy_mis(G):
+    """GMIN: repeatedly pick minimum-degree node, add to IS, remove neighbours."""
+    remaining = set(G.nodes())
+    adj = {v: set(G.neighbors(v)) for v in G.nodes()}
+    selected = np.zeros(G.number_of_nodes(), dtype=bool)
+    while remaining:
+        node = min(remaining, key=lambda v: len(adj[v] & remaining))
+        selected[node] = True
+        remaining -= adj[node] & remaining
+        remaining.discard(node)
+    return selected
+
+
 def visualise_combined(gcon_ckpt, gcon_cfg, hybrid_ckpt, hybrid_cfg, graph_idx, out_path):
     print("  Running gcon inference...")
     data, G, ei, selected_gcon = get_is_solution(gcon_ckpt, gcon_cfg, graph_idx)
@@ -175,24 +188,30 @@ def visualise_combined(gcon_ckpt, gcon_cfg, hybrid_ckpt, hybrid_cfg, graph_idx, 
     print("  Running hybridconv inference...")
     _, _, _, selected_hybrid = get_is_solution(hybrid_ckpt, hybrid_cfg, graph_idx)
 
-    fig, axes = plt.subplots(1, 3, figsize=(21, 7))
+    print("  Running GMIN greedy...")
+    selected_greedy = greedy_mis(G)
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 14))
     fig.suptitle(
         f"MIS — test graph {graph_idx}  ({n} nodes,  {G.number_of_edges()} edges)",
         fontsize=14,
     )
 
-    # panel 1: raw input graph
-    ax = axes[0]
+    # top-left: raw input graph
+    ax = axes[0][0]
     nx.draw_networkx_nodes(G, pos, node_color="#95a5a6", node_size=60, ax=ax)
     nx.draw_networkx_edges(G, pos, alpha=0.3, ax=ax)
     ax.set_title("Input Graph", fontsize=12)
     ax.axis("off")
 
-    # panel 2: gcon solution
-    draw_is(axes[1], G, pos, ei, selected_gcon,   "GCON Solution")
+    # top-right: GMIN greedy solution
+    draw_is(axes[0][1], G, pos, ei, selected_greedy, "Greedy Solution (GMIN)")
 
-    # panel 3: scattering clique solution
-    draw_is(axes[2], G, pos, ei, selected_hybrid, "Scattering Clique Solution")
+    # bottom-left: gcon solution
+    draw_is(axes[1][0], G, pos, ei, selected_gcon,   "GCON Solution")
+
+    # bottom-right: scattering clique solution
+    draw_is(axes[1][1], G, pos, ei, selected_hybrid, "Scattering Clique Solution")
 
     plt.tight_layout()
     plt.savefig(out_path, dpi=150)
