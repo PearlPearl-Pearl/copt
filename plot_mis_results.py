@@ -40,46 +40,37 @@ def epoch_mean(df, col):
 
 # ── loss curve plots ──────────────────────────────────────────────────────────
 
-def plot_model_curves(csv_path, model_name, out_path):
-    """One figure per model: train loss, val loss, val IS size, greedy IS size."""
-    df = pd.read_csv(csv_path)
+C_GCON   = "#1f77b4"   # blue
+C_HYBRID = "#d62728"   # red
 
-    train_loss    = epoch_mean(df, "loss/train")
-    val_loss      = epoch_mean(df, "loss/valid")
-    size_valid    = epoch_mean(df, "size/valid")
-    greedy_valid  = epoch_mean(df, "greedy_size/valid")
+def plot_comparison(gcon_csv, hybrid_csv):
+    """Two figures: one comparing train losses, one comparing val losses."""
+    dfs = {}
+    if gcon_csv:   dfs["gcon"]       = pd.read_csv(gcon_csv)
+    if hybrid_csv: dfs["hybridconv"] = pd.read_csv(hybrid_csv)
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    fig.suptitle(f"MIS — {model_name}", fontsize=13)
+    colors = {"gcon": C_GCON, "hybridconv": C_HYBRID}
 
-    # left: losses
-    ax = axes[0]
-    if not train_loss.empty:
-        ax.plot(train_loss.index, train_loss.values, label="train loss",
-                color="#1f77b4", linewidth=2)
-    if not val_loss.empty:
-        ax.plot(val_loss.index, val_loss.values, label="val loss",
-                color="#ff7f0e", linewidth=2, linestyle="--")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Loss")
-    ax.set_title("Training vs Validation Loss")
-    ax.legend(); ax.grid(True, alpha=0.3)
-
-    # right: IS sizes
-    ax = axes[1]
-    if not size_valid.empty:
-        ax.plot(size_valid.index, size_valid.values, label="GNN IS size",
-                color="#2ca02c", linewidth=2)
-    if not greedy_valid.empty:
-        ax.plot(greedy_valid.index, greedy_valid.values, label="GMIN IS size",
-                color="#d62728", linewidth=2, linestyle="--")
-    ax.set_xlabel("Epoch"); ax.set_ylabel("Mean IS size")
-    ax.set_title("Validation IS Size (GNN decoder vs GMIN)")
-    ax.legend(); ax.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=150)
-    plt.close()
-    print(f"  Saved → {out_path}")
+    for col, ylabel, title, fname in [
+        ("loss/train", "Training loss",   "MIS — Training Loss: gcon vs hybridconv",   "mis_train_loss.png"),
+        ("loss/valid", "Validation loss", "MIS — Validation Loss: gcon vs hybridconv", "mis_val_loss.png"),
+    ]:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        for name, df in dfs.items():
+            series = epoch_mean(df, col)
+            if series.empty:
+                print(f"  [warn] '{col}' not found for {name}")
+                continue
+            ax.plot(series.index, series.values, label=name,
+                    color=colors[name], linewidth=2, marker="o", markersize=3)
+        ax.set_xlabel("Epoch", fontsize=12)
+        ax.set_ylabel(ylabel,  fontsize=12)
+        ax.set_title(title,    fontsize=13)
+        ax.legend(fontsize=11); ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(fname, dpi=150)
+        plt.close()
+        print(f"  Saved → {fname}")
 
 
 # ── IS graph visualisation ────────────────────────────────────────────────────
@@ -220,15 +211,7 @@ def main():
     gcon_cfg    = "configs/benchmarks/mis/mis_rb_small_gcon.yaml"
 
     print("── Loss curves ──────────────────────────────────────────────")
-    if gcon_csv:
-        plot_model_curves(gcon_csv, "gcon", "mis_gcon_curves.png")
-    else:
-        print("  [warn] gcon CSV not found")
-
-    if hybrid_csv:
-        plot_model_curves(hybrid_csv, "hybridconv", "mis_hybridconv_curves.png")
-    else:
-        print("  [warn] hybridconv CSV not found")
+    plot_comparison(gcon_csv, hybrid_csv)
 
     print("\n── IS visualisation (gcon) ──────────────────────────────────")
     if gcon_ckpt and os.path.exists(gcon_cfg):
