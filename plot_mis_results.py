@@ -103,13 +103,17 @@ def visualise_mis(ckpt_path, cfg_path, graph_idx, out_path):
 
     # ── load dataset ──────────────────────────────────────────────────────────
     from graphgym.patches import create_loader
-    from torch_geometric.graphgym.loader import create_dataset
-    cfg.dataset.split_index = 0
-    dataset = create_dataset()
-    test_data = dataset[2]   # index 2 = test split
-
     from torch_geometric.data import Batch
-    data = test_data[graph_idx]
+    cfg.dataset.split_index = 0
+    loaders = create_loader()
+    test_loader = loaders[-1]   # train / val / test
+
+    test_graphs = []
+    for batch in test_loader:
+        test_graphs.extend(batch.to_data_list())
+
+    print(f"Test set: {len(test_graphs)} graphs")
+    data = test_graphs[graph_idx]
     n = data.num_nodes
     print(f"\nGraph {graph_idx}: {n} nodes")
 
