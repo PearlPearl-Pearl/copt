@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import networkx as nx
 import numpy as np
+import pandas as pd
 import torch
 from torch_geometric.utils import remove_self_loops
 
@@ -37,6 +38,48 @@ def latest_file(pattern):
     if not hits:
         return None
     return os.path.abspath(max(hits, key=os.path.getmtime))
+
+
+def epoch_mean(df, col):
+    if col not in df.columns:
+        return pd.Series(dtype=float)
+    return df[["epoch", col]].dropna(subset=[col]).groupby("epoch")[col].mean()
+
+
+
+
+# ── loss curve plots ──────────────────────────────────────────────────────────
+
+def plot_loss_curves(gcon_csv, hybrid_csv):
+    dfs = {}
+    if gcon_csv:   dfs["gcon"]   = pd.read_csv(gcon_csv)
+    if hybrid_csv: dfs["hybrid"] = pd.read_csv(hybrid_csv)
+
+    colors = {"gcon": "#1f77b4", "hybrid": "#d62728"}
+    labels = {"gcon": "GCON QUBO", "hybrid": "ScatteringClique QUBO"}
+
+    for col, ylabel, title, fname in [
+        ("loss/train", "Training loss",   "MIS QUBO — Training Loss",   "mis_qubo_train_loss.png"),
+        ("loss/valid", "Validation loss", "MIS QUBO — Validation Loss", "mis_qubo_val_loss.png"),
+    ]:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        for name, df in dfs.items():
+            series = epoch_mean(df, col)
+            if series.empty:
+                print(f"  [warn] '{col}' not found for {name}")
+                continue
+            ax.plot(series.index, series.values,
+                    label=labels[name], color=colors[name],
+                    linewidth=2, marker="o", markersize=3)
+        ax.set_xlabel("Epoch", fontsize=12)
+        ax.set_ylabel(ylabel,  fontsize=12)
+        ax.set_title(title,    fontsize=13)
+        ax.legend(fontsize=11)
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(fname, dpi=150)
+        plt.close()
+        print(f"  Saved → {fname}")
 
 
 # ── greedy baseline (GMIN) ───────────────────────────────────────────────────
@@ -185,8 +228,13 @@ def main():
 
     gcon_ckpt   = latest_file("results/mis_rb_small_qubo_gcon*/**/*.ckpt")
     hybrid_ckpt = latest_file("results/mis_rb_small_qubo_hybridconv*/**/*.ckpt")
+    gcon_csv    = latest_file("results/mis_rb_small_qubo_gcon*/**/metrics.csv")
+    hybrid_csv  = latest_file("results/mis_rb_small_qubo_hybridconv*/**/metrics.csv")
     gcon_cfg    = "configs/benchmarks/mis/mis_rb_small_qubo_gcon.yaml"
     hybrid_cfg  = "configs/benchmarks/mis/mis_rb_small_qubo_hybridconv.yaml"
+
+    print("── Loss curves ──────────────────────────────────────────────")
+    plot_loss_curves(gcon_csv, hybrid_csv)
 
     if not gcon_ckpt or not hybrid_ckpt:
         missing = []

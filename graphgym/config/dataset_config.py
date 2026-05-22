@@ -254,8 +254,8 @@ def sbm_small_k3_cfg(cfg):
     cfg.sbm.small_k3.n_min = 50
     cfg.sbm.small_k3.n_max = 100
     cfg.sbm.small_k3.k = 3
-    cfg.sbm.small_k3.p_in = 0.7
-    cfg.sbm.small_k3.p_out = 0.1
+    cfg.sbm.small_k3.p_in = 0.12
+    cfg.sbm.small_k3.p_out = 0.04
 
 
 @register_config('sbm_large_cfg')
