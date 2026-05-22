@@ -254,19 +254,8 @@ def sbm_small_k3_cfg(cfg):
     cfg.sbm.small_k3.n_min = 50
     cfg.sbm.small_k3.n_max = 100
     cfg.sbm.small_k3.k = 3
-    cfg.sbm.small_k3.p_in = 0.12
-    cfg.sbm.small_k3.p_out = 0.04
-
-
-@register_config('sbm_small_k3_hard_cfg')
-def sbm_small_k3_hard_cfg(cfg):
-    """SBM small k=3 hard instances — p_in/p_out ratio ~1.5, communities harder to separate."""
-    cfg.sbm.small_k3_hard = CN()
-    cfg.sbm.small_k3_hard.n_min = 50
-    cfg.sbm.small_k3_hard.n_max = 100
-    cfg.sbm.small_k3_hard.k = 3
-    cfg.sbm.small_k3_hard.p_in = 0.3
-    cfg.sbm.small_k3_hard.p_out = 0.2
+    cfg.sbm.small_k3.p_in = 0.7
+    cfg.sbm.small_k3.p_out = 0.1
 
 
 @register_config('sbm_large_cfg')
