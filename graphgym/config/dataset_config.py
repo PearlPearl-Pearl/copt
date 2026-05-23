@@ -265,8 +265,8 @@ def sbm_small_k3_hard_cfg(cfg):
     cfg.sbm.small_k3_hard.n_min = 75
     cfg.sbm.small_k3_hard.n_max = 75
     cfg.sbm.small_k3_hard.k = 3
-    cfg.sbm.small_k3_hard.p_in = 0.12
-    cfg.sbm.small_k3_hard.p_out = 0.04
+    cfg.sbm.small_k3_hard.p_in = 0.107
+    cfg.sbm.small_k3_hard.p_out = 0.0467
 
 
 @register_config('sbm_large_cfg')
