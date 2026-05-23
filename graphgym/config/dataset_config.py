@@ -258,6 +258,17 @@ def sbm_small_k3_cfg(cfg):
     cfg.sbm.small_k3.p_out = 0.1
 
 
+@register_config('sbm_small_k3_hard_cfg')
+def sbm_small_k3_hard_cfg(cfg):
+    """SBM small k=3 hard instances — fixed 75 nodes, p_in/p_out ratio ~3."""
+    cfg.sbm.small_k3_hard = CN()
+    cfg.sbm.small_k3_hard.n_min = 75
+    cfg.sbm.small_k3_hard.n_max = 75
+    cfg.sbm.small_k3_hard.k = 3
+    cfg.sbm.small_k3_hard.p_in = 0.12
+    cfg.sbm.small_k3_hard.p_out = 0.04
+
+
 @register_config('sbm_large_cfg')
 def sbm_large_cfg(cfg):
     cfg.sbm.large = CN()

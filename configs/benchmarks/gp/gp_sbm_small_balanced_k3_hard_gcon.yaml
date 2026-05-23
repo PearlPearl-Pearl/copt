@@ -101,13 +101,6 @@ gp_loss_balanced:
   gamma: 1000.0
   k: 3
 
-sbm:
-  small_k3_hard:
-    n_min: 75
-    n_max: 75
-    p_in: 0.12
-    p_out: 0.04
-
 metrics:
   gp:
     k: 3
