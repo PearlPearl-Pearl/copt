@@ -1,0 +1,75 @@
+---
+out_dir: results
+metric_best: loss
+metric_agg: argmin
+num_workers: 4
+dim_out: 1
+wandb:
+  use: False
+  name: ising_mixed_gatedgcn
+  project: copt-ising
+
+dataset:
+  format: ising
+  name: mixed
+  task: graph
+  split_mode: cv-kfold-5
+  split_dir: splits
+  node_encoder: false   # dataset already provides x (normalised degree)
+  label: false
+
+train:
+  mode: copt
+  task: gp
+  batch_size: 64
+  val_period: 1
+  ckpt_period: 1
+  ckpt_best: true
+  log_probs: false
+
+model:
+  type: gnn
+  loss_fun: ising_loss
+  edge_decoding: dot
+  graph_pooling: mean
+
+gnn:
+  head: copt_inductive_node
+  layers_pre_mp: 2
+  layers_mp: 16
+  layers_post_mp: 1
+  dim_inner: 256
+  layer_type: gatedgcnconv
+  stage_type: skipsum
+  batchnorm: true
+  act: elu
+  last_act: sigmoid
+  dropout: 0.3
+  agg: mean
+  normalize_adj: false
+
+optim:
+  base_lr: 0.003
+  max_epoch: 100
+  optimizer: adam
+  weight_decay: 1e-5
+  scheduler: cosine_with_warmup
+  num_warmup_epochs: 5
+  entropy:
+    enable: false
+    scheduler: linear-energy
+    base_temp: 1.0
+    min_temp: 0.001
+
+ising_loss:
+  gamma: 1000.0
+
+metrics:
+  gp:
+    k: 2
+
+ising:
+  num_samples: 1000
+  mixed:
+    n: 100
+    eps: 0.05

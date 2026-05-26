@@ -1,0 +1,72 @@
+---
+out_dir: results
+metric_best: loss
+metric_agg: argmin
+num_workers: 4
+dim_out: 2
+wandb:
+  use: False
+  name: ising_mixed_sanity
+  project: copt-ising
+
+dataset:
+  format: ising
+  name: mixed
+  task: graph
+  split_mode: cv-kfold-5
+  split_dir: splits
+  node_encoder: false   # dataset already provides x (normalised degree)
+  label: false
+
+train:
+  mode: copt
+  task: gp
+  batch_size: 32
+  val_period: 1
+  ckpt_period: 1
+  ckpt_best: true
+  log_probs: false
+
+model:
+  type: gnn
+  loss_fun: gp_loss_balanced
+  edge_decoding: dot
+  graph_pooling: mean
+
+gnn:
+  head: copt_inductive_node
+  layers_pre_mp: 1
+  layers_mp: 4
+  layers_post_mp: 1
+  dim_inner: 64
+  layer_type: gcon
+  stage_type: skipsum
+  batchnorm: true
+  act: elu
+  last_act: softmax
+  dropout: 0.0
+  agg: mean
+  normalize_adj: false
+
+optim:
+  base_lr: 0.003
+  max_epoch: 5
+  optimizer: adam
+  weight_decay: 1e-5
+  scheduler: cosine_with_warmup
+  num_warmup_epochs: 1
+
+gp_loss_balanced:
+  beta: 1000.0
+  gamma: 1000.0
+  k: 2
+
+metrics:
+  gp:
+    k: 2
+
+ising:
+  num_samples: 200   # small — just to verify the pipeline
+  mixed:
+    n: 100
+    eps: 0.05

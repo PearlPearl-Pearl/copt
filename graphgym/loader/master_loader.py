@@ -34,6 +34,7 @@ from graphgym.loader.dataset.rb_dataset import RBDataset
 from graphgym.loader.dataset.pc_dataset import PCDataset
 from graphgym.loader.dataset.ba_dataset import BADataset
 from graphgym.loader.dataset.sbm_dataset import SBMDataset
+from graphgym.loader.dataset.ising_dataset import IsingDataset
 from graphgym.loader.dataset.synthetic_wl import SyntheticWL
 from graphgym.loader.dataset.satlib import SATLIB
 from graphgym.loader.dataset.gset import Gset
@@ -157,7 +158,7 @@ def load_dataset_master(format, name, dataset_dir):
         print(tf_list)
         pre_transform_in_memory(dataset, T.Compose(tf_list), show_progress=True)
 
-    elif format in ['er', 'bp', 'rb', 'pc', 'ba', 'sbm']:
+    elif format in ['er', 'bp', 'rb', 'pc', 'ba', 'sbm', 'ising']:
         # TODO: eccentricity fails on RB because graph may be disconnected
         if not cfg.dataset.label or cfg.train.task == 'plantedclique':
             pre_tf_list = []
@@ -180,6 +181,8 @@ def load_dataset_master(format, name, dataset_dir):
             dataset = BADataset(name, dataset_dir, pre_transform=T.Compose(pre_tf_list))
         elif format.startswith('sbm'):
             dataset = SBMDataset(name, dataset_dir, pre_transform=T.Compose(pre_tf_list))
+        elif format.startswith('ising'):
+            dataset = IsingDataset(name, dataset_dir, pre_transform=T.Compose(pre_tf_list))
 
         pre_transform_in_memory(dataset, T.Compose(tf_list), show_progress=True)
 
