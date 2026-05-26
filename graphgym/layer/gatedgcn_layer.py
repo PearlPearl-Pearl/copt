@@ -148,8 +148,10 @@ class GatedGCNGraphGymLayer(nn.Module):
         from torch_geometric.graphgym.config import cfg
         edge_raw_dim = cfg.gnn.edge_in_dim  # 0 → same as dim_in, no projection
         if edge_raw_dim and edge_raw_dim != layer_config.dim_in:
+            self.edge_raw_dim = edge_raw_dim
             self.edge_encoder = pyg_nn.Linear(edge_raw_dim, layer_config.dim_in, bias=True)
         else:
+            self.edge_raw_dim = None
             self.edge_encoder = None
         self.model = GatedGCNLayer(in_dim=layer_config.dim_in,
                                    out_dim=layer_config.dim_out,
@@ -159,7 +161,12 @@ class GatedGCNGraphGymLayer(nn.Module):
                                    **kwargs)
 
     def forward(self, batch):
-        if self.edge_encoder is not None and batch.edge_attr is not None:
+        # Only project on the first layer (when edge_attr is still raw dim).
+        # After layer 1, GatedGCNLayer writes back 256-D edge embeddings and
+        # every subsequent layer must skip the encoder.
+        if (self.edge_encoder is not None
+                and batch.edge_attr is not None
+                and batch.edge_attr.size(-1) == self.edge_raw_dim):
             batch.edge_attr = self.edge_encoder(batch.edge_attr)
         return self.model(batch)
 
