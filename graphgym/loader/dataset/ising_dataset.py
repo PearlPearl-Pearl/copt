@@ -85,7 +85,10 @@ def _build_data(G, labels, W):
     edge_attr  = torch.tensor(edge_attr,  dtype=torch.float).unsqueeze(1)
     x = _node_features(G)
     y = torch.tensor(labels, dtype=torch.long)
-    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
+    # Keep original scalar coupling weights so loss functions can use them
+    # even after GatedGCN overwrites edge_attr with learned embeddings.
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr,
+                edge_weight=edge_attr.clone(), y=y)
 
 
 def generate_ising_instance(n=100, graph_type="er", eps=0.05):

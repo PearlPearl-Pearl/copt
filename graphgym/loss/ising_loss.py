@@ -32,9 +32,12 @@ def ising_loss_pyg(batch, gamma=1000.0, **kwargs):
         ei = remove_self_loops(data.edge_index)[0]
         src, dst = ei[0], ei[1]
 
-        # edge weights: use edge_attr if available, else default to 1
-        if data.edge_attr is not None:
-            w = data.edge_attr.squeeze()   # (|E|,)
+        # Use original scalar coupling weights. edge_weight is set by the dataset
+        # and stays untouched; edge_attr gets overwritten by GatedGCN layers.
+        if hasattr(data, 'edge_weight') and data.edge_weight is not None:
+            w = data.edge_weight.squeeze()  # (|E|,)  original ±1 / 1.0 weights
+        elif data.edge_attr is not None:
+            w = data.edge_attr.squeeze()
         else:
             w = torch.ones(src.shape[0], device=x.device)
 
