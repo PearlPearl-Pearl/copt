@@ -42,3 +42,8 @@ def custom_gnn_cfg(cfg):
     cfg.gnn.hybrid_v2.num_heads = 1
     cfg.gnn.hybrid_v2.depth_mlp = 1
     cfg.gnn.hybrid_v2.skip = False
+
+    # Raw edge-feature dimension fed into the first GatedGCN layer.
+    # 0 means "same as node dim_in" (no projection needed).
+    # Set to 1 for datasets where edge_attr is a scalar weight.
+    cfg.gnn.edge_in_dim = 0

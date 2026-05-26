@@ -47,6 +47,7 @@ gnn:
   dropout: 0.3
   agg: mean
   normalize_adj: false
+  edge_in_dim: 1   # Ising edge_attr is a scalar weight → project 1→dim_inner
 
 optim:
   base_lr: 0.003

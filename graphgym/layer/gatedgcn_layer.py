@@ -145,6 +145,12 @@ class GatedGCNGraphGymLayer(nn.Module):
     """
     def __init__(self, layer_config: LayerConfig, **kwargs):
         super().__init__()
+        from torch_geometric.graphgym.config import cfg
+        edge_raw_dim = cfg.gnn.edge_in_dim  # 0 → same as dim_in, no projection
+        if edge_raw_dim and edge_raw_dim != layer_config.dim_in:
+            self.edge_encoder = pyg_nn.Linear(edge_raw_dim, layer_config.dim_in, bias=True)
+        else:
+            self.edge_encoder = None
         self.model = GatedGCNLayer(in_dim=layer_config.dim_in,
                                    out_dim=layer_config.dim_out,
                                    dropout=0.,  # Dropout is handled by GraphGym's `GeneralLayer` wrapper
@@ -153,6 +159,8 @@ class GatedGCNGraphGymLayer(nn.Module):
                                    **kwargs)
 
     def forward(self, batch):
+        if self.edge_encoder is not None and batch.edge_attr is not None:
+            batch.edge_attr = self.edge_encoder(batch.edge_attr)
         return self.model(batch)
 
 
