@@ -6,47 +6,36 @@ from torch_geometric.utils import remove_self_loops
 @register_loss("ising_loss")
 def ising_loss_pyg(batch, gamma=1000.0, **kwargs):
     """
-    Weighted Ising loss for balanced binary graph partitioning.
+    L = (1/B) sum_g [ -sum_{(i,j) in E} w_ij s_i s_j  +  gamma*(sum_i x_i - n/2)^2 ]
 
-    For soft assignments x_i in [0, 1], maps to spins s_i = 2*x_i - 1 in [-1, 1].
-
-    L = (1/B) * sum_g  n_g * [
-          - sum_{(i,j) in E}  w_ij * s_i * s_j          (Ising energy)
-          + gamma * (sum_i x_i  -  n/2)^2               (balance)
-        ]
-
-    Minimising the Ising energy encourages:
-      - ferromagnetic edges  (w > 0): neighbours in the same partition
-      - antiferromagnetic edges (w < 0): neighbours in opposite partitions
-
-    gamma controls how strongly the balanced-partition constraint is enforced.
+    x_i in [0,1]: node output probability.
+    s_i = 2*x_i - 1: soft spin in [-1, 1].
+    w_ij from edge_weight (original ±1 coupling constants); edge_attr is not
+    used here because GatedGCN overwrites it with learned embeddings.
     """
     data_list = batch.to_data_list()
     loss = 0.0
 
     for data in data_list:
-        x = data.x.squeeze()           # (n,)  probabilities in [0, 1]
-        s = 2.0 * x - 1.0              # (n,)  soft spins in [-1, 1]
+        x = data.x.squeeze()       # (n,)
+        s = 2.0 * x - 1.0          # (n,)  soft spins
         n = data.num_nodes
 
         ei = remove_self_loops(data.edge_index)[0]
         src, dst = ei[0], ei[1]
 
-        # Use original scalar coupling weights. edge_weight is set by the dataset
-        # and stays untouched; edge_attr gets overwritten by GatedGCN layers.
+        # Original scalar coupling weights, preserved across GatedGCN layers.
         if hasattr(data, 'edge_weight') and data.edge_weight is not None:
-            w = data.edge_weight.squeeze()  # (|E|,)  original ±1 / 1.0 weights
+            w = data.edge_weight.squeeze()
         elif data.edge_attr is not None:
             w = data.edge_attr.squeeze()
         else:
             w = torch.ones(src.shape[0], device=x.device)
 
-        # term 1: Ising energy (divide by 2 — undirected edges appear twice)
+        # Edges stored in both directions → divide by 2 to count each once.
         ising_energy = -torch.sum(w * s[src] * s[dst]) / 2.0
-
-        # term 2: balance penalty
         balance = (x.sum() - n / 2.0) ** 2
 
-        loss += (ising_energy + gamma * balance) * n
+        loss += ising_energy + gamma * balance
 
     return loss / batch.size(0)
