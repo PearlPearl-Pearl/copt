@@ -484,7 +484,7 @@ def gp_loss_balanced_pyg(batch, beta=500, gamma=1000, k=2, **kwargs):
         # term 2: penalize non-adjacent nodes in same partition
         # diff is (n, n, k)
         diff = data.x.unsqueeze(0) - data.x.unsqueeze(1)
-        all_pairs = (diff ** 2)  # (n, n, k)
+        all_pairs = 0.5*(diff ** 2)  # (n, n, k)
 
         # mask out diagonal and adjacent pairs
         adj_mask = torch.zeros(n, n, dtype=torch.bool, device=data.x.device)
