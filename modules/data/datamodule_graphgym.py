@@ -64,6 +64,7 @@ def train(model: GraphGymModule, datamodule, logger: bool = True,
         check_val_every_n_epoch=cfg.train.val_period,
         accumulate_grad_batches=cfg.optim.batch_accumulation,
         logger=loggers,
+        gradient_clip_val=1.0 if cfg.optim.clip_grad_norm else None,
     )
 
     if not cfg.train.mode == 'copt_test':

@@ -85,12 +85,13 @@ gnn:
   edge_in_dim: 1   # edge_attr is a scalar weight → project 1→dim_inner
 
 optim:
-  base_lr: 0.003
+  base_lr: 0.001
   max_epoch: 100
   optimizer: adam
   weight_decay: 1e-5
   scheduler: cosine_with_warmup
   num_warmup_epochs: 5
+  clip_grad_norm: true   # prevents O(n^3) loss from exploding gradients
   entropy:
     enable: false
     scheduler: linear-energy
@@ -98,8 +99,8 @@ optim:
     min_temp: 0.001
 
 gp_loss_balanced:
-  beta: 1000.0
-  gamma: 1000.0
+  beta: 100.0
+  gamma: 100.0
   k: 2
 
 metrics:
