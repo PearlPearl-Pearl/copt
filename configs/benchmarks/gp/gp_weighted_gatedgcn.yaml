@@ -64,7 +64,7 @@ train:
 
 model:
   type: gnn
-  loss_fun: gp_loss_balanced
+  loss_fun: gp_loss_simple
   edge_decoding: dot
   graph_pooling: mean
 
@@ -98,9 +98,9 @@ optim:
     base_temp: 1.0
     min_temp: 0.001
 
-gp_loss_balanced:
-  beta: 100.0
-  gamma: 100.0
+gp_loss_simple:
+  gamma: 10.0
+  delta: 1.0
   k: 2
 
 metrics:

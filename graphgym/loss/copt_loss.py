@@ -468,6 +468,28 @@ def maxbipartite_loss(output, adj, beta):
 #     return total_loss / batch.size(0)
 
 
+@register_loss("gp_loss_simple")
+def gp_loss_simple_pyg(batch, gamma=10.0, delta=1.0, k=2, **kwargs):
+    """
+    Numerically stable k=2 GP loss — O(|E|) + O(n), no O(n²) non-adjacent term.
+
+      L = Σ_{(i,j)∈E} (x_i - x_j)²          [cut penalty]
+        + γ · (Σ_i x_i - n/k)²               [balance]
+        + δ · Σ_i x_i(1 - x_i)               [discreteness: push x toward {0,1}]
+    """
+    data_list = batch.to_data_list()
+    loss = 0.0
+    for data in data_list:
+        src, dst = remove_self_loops(data.edge_index)[0]
+        n = data.num_nodes
+        x = data.x.squeeze()                       # (n,) sigmoid ∈ [0,1]
+        loss_cut  = torch.sum((x[src] - x[dst]) ** 2)
+        loss_bal  = (x.sum() - n / float(k)) ** 2
+        loss_disc = torch.sum(x * (1.0 - x))
+        loss += loss_cut + gamma * loss_bal + delta * loss_disc
+    return loss / batch.size(0)
+
+
 @register_loss("gp_loss_balanced")
 def gp_loss_balanced_pyg(batch, beta=500, gamma=1000, k=2, **kwargs):
     data_list = batch.to_data_list()

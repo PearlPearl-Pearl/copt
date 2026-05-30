@@ -46,5 +46,10 @@ def loss_param_cfg(cfg):
     cfg.gp_loss_balanced.gamma = 1000.0  # balance penalty
     cfg.gp_loss_balanced.k = 2           # number of partitions
 
+    cfg.gp_loss_simple = CN()
+    cfg.gp_loss_simple.gamma = 10.0   # balance penalty
+    cfg.gp_loss_simple.delta = 1.0    # discreteness penalty
+    cfg.gp_loss_simple.k = 2          # number of partitions
+
     cfg.metrics.gp = CN()
     cfg.metrics.gp.k = 2
