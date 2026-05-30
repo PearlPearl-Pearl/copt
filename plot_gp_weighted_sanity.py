@@ -90,6 +90,9 @@ def run_gnn(ckpt_path, cfg_path, data):
 
     logits = getattr(batch, "logits", batch.x)
     logits = logits.squeeze().cpu().numpy()
+    # scalar sigmoid output: threshold at 0.5
+    if logits.ndim == 1 or logits.shape[-1] == 1:
+        return (logits.squeeze() >= 0.5).astype(int)
     return np.argmax(logits, axis=-1).astype(int)
 
 

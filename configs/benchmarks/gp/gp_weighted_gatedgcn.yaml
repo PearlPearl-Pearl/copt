@@ -3,7 +3,7 @@ out_dir: results
 metric_best: loss
 metric_agg: argmin
 num_workers: 4
-dim_out: 2          # 2-dim softmax per node (one logit per partition)
+dim_out: 1          # scalar sigmoid per node; decode as x >= 0.5 → k=2 partition
 wandb:
   use: False
   name: gp_weighted_gatedgcn
@@ -78,7 +78,7 @@ gnn:
   stage_type: skipsum
   batchnorm: true
   act: elu
-  last_act: softmax
+  last_act: sigmoid
   dropout: 0.3
   agg: mean
   normalize_adj: false
