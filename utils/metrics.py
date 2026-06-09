@@ -519,6 +519,51 @@ def gp_greedy_cut_pyg(batch, k=2):
     return torch.tensor(cut_list, dtype=torch.float).mean()
 
 
+def _weighted_cut_edge_attr(data, labels):
+    """Signed weighted cut fraction using edge_attr: |Σ_{cut} w_ij| / Σ |w_ij|."""
+    src, dst = data.edge_index[0], data.edge_index[1]
+    w = data.edge_attr.view(-1).float() if data.edge_attr is not None \
+        else torch.ones(src.shape[0], device=src.device)
+    if not isinstance(labels, torch.Tensor):
+        labels = torch.tensor(labels, device=src.device)
+    cut_mask     = labels[src] != labels[dst]
+    weighted_cut = torch.abs(torch.sum(w[cut_mask]))
+    total_weight = torch.sum(torch.abs(w))
+    return (weighted_cut / total_weight).item() if total_weight > 0 else 0.0
+
+
+def gp_gnn_wcut_pyg(batch, k=2):
+    """Mean signed weighted cut fraction for the GNN partition."""
+    data_list = batch.to_data_list()
+    cut_list = []
+    for data in data_list:
+        labels = gp_decoder(data).cpu()
+        cut_list.append(_weighted_cut_edge_attr(data, labels))
+    return torch.tensor(cut_list, dtype=torch.float).mean()
+
+
+def gp_spectral_wcut_pyg(batch, k=2):
+    """Mean signed weighted cut fraction for the spectral baseline."""
+    from utils.spectral import spectral_partition
+    data_list = batch.to_data_list()
+    cut_list = []
+    for data in data_list:
+        A      = _edge_index_to_adj(data)
+        labels = spectral_partition(A, k)
+        cut_list.append(_weighted_cut_edge_attr(data, labels))
+    return torch.tensor(cut_list, dtype=torch.float).mean()
+
+
+def gp_greedy_wcut_pyg(batch, k=2):
+    """Mean signed weighted cut fraction for the greedy heuristic."""
+    data_list = batch.to_data_list()
+    cut_list = []
+    for data in data_list:
+        labels = torch.tensor(_gp_greedy_labels(data, k=k))
+        cut_list.append(_weighted_cut_edge_attr(data, labels))
+    return torch.tensor(cut_list, dtype=torch.float).mean()
+
+
 ### MAXBIPARTITE ###
 
 def maxbipartite_decoder(output, adj, dec_length):

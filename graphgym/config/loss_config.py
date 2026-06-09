@@ -53,3 +53,11 @@ def loss_param_cfg(cfg):
 
     cfg.metrics.gp = CN()
     cfg.metrics.gp.k = 2
+
+    cfg.gp_loss_balanced_weighted = CN()
+    cfg.gp_loss_balanced_weighted.gamma = 10.0
+    cfg.gp_loss_balanced_weighted.delta = 1.0
+    cfg.gp_loss_balanced_weighted.k = 2
+
+    cfg.metrics.gp_weighted = CN()
+    cfg.metrics.gp_weighted.k = 2

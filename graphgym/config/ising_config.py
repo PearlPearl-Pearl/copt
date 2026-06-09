@@ -15,3 +15,11 @@ def ising_mixed_cfg(cfg):
     cfg.ising.mixed = CN()
     cfg.ising.mixed.n   = 100   # number of nodes per graph
     cfg.ising.mixed.eps = 0.05  # balance tolerance for Ising refinement
+
+
+@register_config('ising_spin_glass_cfg')
+def ising_spin_glass_cfg(cfg):
+    """Parameters for the 'spin_glass' Ising variant (100% 5-regular ±1 weighted)."""
+    cfg.ising.spin_glass = CN()
+    cfg.ising.spin_glass.n   = 100
+    cfg.ising.spin_glass.eps = 0.05

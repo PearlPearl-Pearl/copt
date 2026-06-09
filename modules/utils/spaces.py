@@ -18,6 +18,7 @@ from utils.metrics import (
     mds_size_pyg, mds_acc_pyg,
     mis_size_pyg, greedy_mis_size,
     gp_gnn_cut_pyg, gp_spectral_cut_pyg, gp_greedy_cut_pyg,
+    gp_gnn_wcut_pyg, gp_spectral_wcut_pyg, gp_greedy_wcut_pyg,
 )
 
 OPTIMIZER_DICT = {
@@ -63,6 +64,7 @@ EVAL_FUNCTION_DICT = {
     "mis": {"size": mis_size_pyg, "greedy_size": greedy_mis_size},
     "plantedclique": {"acc": plantedclique_acc_pyg},
     "gp": {"gnn_cut": gp_gnn_cut_pyg, "spectral_cut": gp_spectral_cut_pyg, "greedy_cut": gp_greedy_cut_pyg},
+    "gp_weighted": {"gnn_cut": gp_gnn_wcut_pyg, "spectral_cut": gp_spectral_wcut_pyg, "greedy_cut": gp_greedy_wcut_pyg},
 }
 
 EVAL_FUNCTION_DICT_NOLABEL = {
@@ -71,4 +73,5 @@ EVAL_FUNCTION_DICT_NOLABEL = {
     "mds": {"size": mds_size_pyg},
     "mis": {"size": mis_size_pyg, "greedy_size": greedy_mis_size},
     "gp": {"gnn_cut": gp_gnn_cut_pyg, "spectral_cut": gp_spectral_cut_pyg, "greedy_cut": gp_greedy_cut_pyg},
+    "gp_weighted": {"gnn_cut": gp_gnn_wcut_pyg, "spectral_cut": gp_spectral_wcut_pyg, "greedy_cut": gp_greedy_wcut_pyg},
 }

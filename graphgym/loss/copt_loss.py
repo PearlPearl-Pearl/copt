@@ -490,6 +490,37 @@ def gp_loss_simple_pyg(batch, gamma=10.0, delta=1.0, k=2, **kwargs):
     return loss / batch.size(0)
 
 
+@register_loss("gp_loss_balanced_weighted")
+def gp_loss_balanced_weighted_pyg(batch, gamma=10.0, delta=1.0, k=2, **kwargs):
+    """
+    Weighted GP loss for signed edge weights (e.g. ±1 spin-glass graphs).
+
+      L = Σ_{(i,j)∈E} w_ij · (x_i - x_j)²  / 2   [weighted cut]
+        + γ · (Σ_i x_i - n/k)²                     [balance]
+        + δ · Σ_i x_i(1 - x_i)                     [discreteness]
+
+    O(|E|) + O(n) — numerically stable, no O(n²) term.
+    """
+    data_list = batch.to_data_list()
+    loss = 0.0
+    for data in data_list:
+        ei = remove_self_loops(data.edge_index)[0]
+        src, dst = ei[0], ei[1]
+        n = data.num_nodes
+        x = data.x.squeeze()
+        if data.edge_attr is not None:
+            w = data.edge_attr.view(-1).float()
+        elif hasattr(data, 'edge_weight') and data.edge_weight is not None:
+            w = data.edge_weight.view(-1).float()
+        else:
+            w = torch.ones(src.shape[0], device=x.device)
+        loss_cut  = torch.sum(w * (x[src] - x[dst]) ** 2) / 2.0
+        loss_bal  = (x.sum() - n / float(k)) ** 2
+        loss_disc = torch.sum(x * (1.0 - x))
+        loss += loss_cut + gamma * loss_bal + delta * loss_disc
+    return loss / batch.size(0)
+
+
 @register_loss("gp_loss_balanced")
 def gp_loss_balanced_pyg(batch, beta=500, gamma=1000, k=2, **kwargs):
     data_list = batch.to_data_list()

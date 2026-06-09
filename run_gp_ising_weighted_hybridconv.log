@@ -1,0 +1,30 @@
+WARNING:root:dataset.transductive changed to False for graph task.
+[*] Run ID 0: seed=0, split_index=0
+    Starting now: 2026-06-09 16:59:20.812623
+  0%|          | 0/1000 [00:00<?, ?it/s]100%|██████████| 1000/1000 [00:00<00:00, 14019.38it/s]
+[*] Loaded dataset 'spin_glass' from 'ising':
+/home/guest/anaconda3/envs/main_paper_env/lib/python3.10/site-packages/torch_geometric/data/in_memory_dataset.py:300: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  warnings.warn(msg)
+  Data(x=[100000, 2], edge_index=[2, 500000], edge_attr=[500000, 1], y=[100000, 1], edge_weight=[500000, 1], degree=[100000, 1], cluster_coefficient=[100000, 1], triangle_count=[100000, 1])
+  undirected: True
+  num graphs: 1000
+/home/guest/anaconda3/envs/main_paper_env/lib/python3.10/site-packages/torch_geometric/data/in_memory_dataset.py:300: UserWarning: It is not recommended to directly access the internal storage format `data` of an 'InMemoryDataset'. The data of the dataset is already cached, so any modifications to `data` will not be reflected when accessing its elements. Clearing the cache now by removing all elements in `dataset._data_list`. If you are absolutely certain what you are doing, access the internal storage via `InMemoryDataset._data` instead to suppress this warning. Alternatively, you can access stacked individual attributes of every graph via `dataset.{attr_name}`.
+  warnings.warn(msg)
+  avg num_nodes/graph: 100
+  num node features: 2
+  num edge features: 1
+  num classes: (appears to be a regression task)
+Precomputing Positional Encoding statistics: ['GraphStats'] for all graphs...
+  ...estimated to be undirected: True
+  0%|          | 0/1000 [00:00<?, ?it/s]100%|██████████| 1000/1000 [00:00<00:00, 17632.76it/s]
+Done! Took 00:00:00.07
+Finished processing data:
+  Data(x=[100000, 2], edge_index=[2, 500000], edge_attr=[500000, 1], y=[100000, 1], edge_weight=[500000, 1], degree=[100000, 1], cluster_coefficient=[100000, 1], triangle_count=[100000, 1], train_graph_index=[600], val_graph_index=[200], test_graph_index=[200])
+Traceback (most recent call last):
+  File "/home/guest/Desktop/AIMS/essay_phase/copt/main.py", line 157, in <module>
+    model = create_model(dim_in=cfg.dim_in, dim_out=cfg.dim_out)
+  File "/home/guest/Desktop/AIMS/essay_phase/copt/modules/architecture/copt_module.py", line 216, in create_model
+    model = COPTModule(dim_in, dim_out, cfg)
+  File "/home/guest/Desktop/AIMS/essay_phase/copt/modules/architecture/copt_module.py", line 25, in __init__
+    loss_func = register.loss_dict[cfg.model.loss_fun]
+KeyError: 'gp_loss_balanced_weighted'
