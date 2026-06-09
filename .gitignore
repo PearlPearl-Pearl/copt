@@ -19,4 +19,5 @@ wandb/
 combopt/
 
 splits/
-datasets/
+datasets/*.zip
+*.ckpt
