@@ -649,7 +649,8 @@ def compute_graph_stats(data):
     norm_factor = np.sqrt(g.number_of_nodes()) if cfg.gnn.gsn else 1
 
     if 'degree' in cfg.dataset.graph_stats:
-        data.degree = compute_degrees(adj, log_transform=True)[0] / norm_factor
+        raw_deg = compute_degrees(adj, log_transform=False)[0]
+        data.degree = torch.log(raw_deg + 1.0) / norm_factor
     if 'eccentricity' in cfg.dataset.graph_stats:
         data.eccentricity = compute_eccentricity(g)[0] / norm_factor
     if 'cluster_coefficient' in cfg.dataset.graph_stats:
