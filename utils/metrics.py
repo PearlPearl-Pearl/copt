@@ -521,11 +521,14 @@ def gp_greedy_cut_pyg(batch, k=2):
 
 def _weighted_cut_edge_attr(data, labels):
     """Signed weighted cut fraction using edge_attr: |Σ_{cut} w_ij| / Σ |w_ij|."""
-    src, dst = data.edge_index[0], data.edge_index[1]
-    w = data.edge_attr.view(-1).float() if data.edge_attr is not None \
-        else torch.ones(src.shape[0], device=src.device)
+    src = data.edge_index[0].cpu()
+    dst = data.edge_index[1].cpu()
+    w = data.edge_attr.view(-1).float().cpu() if data.edge_attr is not None \
+        else torch.ones(src.shape[0])
     if not isinstance(labels, torch.Tensor):
-        labels = torch.tensor(labels, device=src.device)
+        labels = torch.tensor(labels)
+    else:
+        labels = labels.cpu()
     cut_mask     = labels[src] != labels[dst]
     weighted_cut = torch.abs(torch.sum(w[cut_mask]))
     total_weight = torch.sum(torch.abs(w))
