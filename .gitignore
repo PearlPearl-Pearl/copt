@@ -21,3 +21,4 @@ combopt/
 splits/
 datasets/*.zip
 *.ckpt
+datasets/
